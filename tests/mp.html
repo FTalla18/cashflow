@@ -36,6 +36,14 @@ const loaded=f=>new Promise(r=>f.contentDocument&&f.contentDocument.readyState==
  out.push('feeds identical: '+(a.getElementById('log').textContent===b.getElementById('log').textContent));
  out.push('host turn panel : '+a.getElementById('turn').textContent.replace(/\s+/g,' ').slice(0,80));
  out.push('guest turn panel: '+b.getElementById('turn').textContent.replace(/\s+/g,' ').slice(0,80));
+
+ // the guest disconnects: the host should auto-play their turns after the grace period
+ for (let k=0;k<6;k++){ const t=a.getElementById('turn'); const btn=t.querySelector('[data-act="ROLL"]')||t.querySelector('[data-act="DEAL"][data-size="small"]')||t.querySelector('[data-act="PASS"]')||t.querySelector('[data-act="END_TURN"]'); if(!btn) break; btn.click(); await sleep(1900); }
+ B.remove(); const t0=Date.now(); let skipped=false;
+ for (let i=0;i<70 && !skipped;i++){ await sleep(1000); skipped=/offline/.test(a.getElementById('players').textContent) && [...a.querySelectorAll('#log p')].slice(0,4).some(p=>/Jordan pass/.test(p.textContent)); }
+ out.push(`offline guest auto-skipped: ${skipped} after ${Math.round((Date.now()-t0)/1000)}s`);
+ out.push('timer chip: '+(a.getElementById('timerChip')||{}).textContent);
+ out.push('players: '+a.getElementById('players').textContent.replace(/\s+/g,' ')); out.push('turn: '+a.getElementById('turn').textContent.replace(/\s+/g,' ').slice(0,60)); [...a.querySelectorAll('#log p')].slice(0,8).forEach(p=>out.push('  log: '+p.textContent));
  done();
 })();
 function done(){ out.unshift('errors: '+JSON.stringify(errs)); fetch('/log',{method:'POST',body:out.join('\n')}); }

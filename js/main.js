@@ -1,6 +1,8 @@
 // App controller: lobby, local (pass-and-play) games, hosting and joining online games.
-import { newGame, apply, current, GameError, MAX_PLAYERS } from "./engine.js";
-import { renderGame, renderBoard, statementHTML, showDice } from "./ui.js";
+import { newGame, apply, current, actor, GameError, MAX_PLAYERS } from "./engine.js";
+import { renderGame, renderBoard, statementHTML, showDice, renderTimer } from "./ui.js";
+import { setTaxTables, bestTaxYear } from "./tax.js";
+import { initCoach, openCoach } from "./coach.js";
 import { sfx, soundFor, toggleMute, isMuted } from "./sound.js";
 import { hostRoom, joinRoom } from "./net.js";
 
@@ -38,6 +40,48 @@ function show(screen) {
 }
 function newSeed() { return crypto.getRandomValues(new Uint32Array(2)).join("-"); }
 
+// Tax tables: the newest IRS tables (auto-updated by a GitHub Action) load at startup; the 2026 table is built in as a fallback.
+const taxReady = fetch("js/data/tax-tables.json", { cache: "no-cache" }).then((r) => r.json()).then(setTaxTables).catch(() => {});
+async function makeGame(players, length) {
+  await taxReady;
+  return newGame({ seed: newSeed(), players, length, taxYear: bestTaxYear(new Date().getFullYear()) });
+}
+
+// ------------------------------------------------------------------ turn timer (online games, run by the host)
+// The host auto-plays for whoever is up when time runs out: roll, take a small deal, pass, end the turn.
+// Offline players are auto-skipped after a short grace period even with the timer off.
+const GRACE = 20;
+const timer = { limit: 0, deadline: null, key: null, offline: false, autoTurn: null, guestDeadline: null };
+function armTimer() {
+  const g = app.game;
+  if (app.mode !== "host" || !g || g.winner) { timer.deadline = null; return; }
+  const a = actor(g), off = !app.online.has(a.id);
+  const key = `${g.round}:${g.turn}:${g.phase}:${a.id}`;
+  if (key === timer.key && off === timer.offline) return;
+  timer.key = key; timer.offline = off;
+  const turnKey = `${g.round}:${g.turn}`;
+  const secs = off ? (timer.autoTurn === turnKey ? 2 : GRACE) : timer.limit;
+  timer.deadline = secs ? Date.now() + secs * 1000 : null;
+}
+function autoAct() {
+  const g = app.game, a = actor(g);
+  const card = g.phase === "share" ? null : g.card;
+  const action = g.phase === "roll" ? { type: "ROLL" } : g.phase === "choose" ? { type: "DEAL", size: "small" } : g.phase === "manage" ? { type: "END_TURN" } : { type: "PASS" };
+  if (g.phase === "decide" && card && card.type === "offer") action.type = "PASS";
+  timer.autoTurn = `${g.round}:${g.turn}`;
+  try { setGame(apply(g, { ...action, by: a.id })); broadcastState(); toast(`⏱ Time's up: auto-played for ${a.name}`); }
+  catch (e) { console.warn("auto-act failed", e); setGame(apply(g, { type: "END_TURN", by: current(g).id })); broadcastState(); }
+}
+app.timeLeft = () => {
+  const d = app.mode === "host" ? timer.deadline : app.mode === "guest" ? timer.guestDeadline : null;
+  return d ? (d - Date.now()) / 1000 : null;
+};
+setInterval(() => {
+  if (!app.game) return;
+  renderTimer(app);
+  if (app.mode === "host" && timer.deadline && Date.now() >= timer.deadline && !app.game.winner) { timer.deadline = null; autoAct(); }
+}, 500);
+
 let animating = null;
 function playSounds(entries) {
   const seen = new Set();
@@ -48,7 +92,8 @@ function setGame(next) {
   const prevSeq = prev ? prev.seq : -1;
   const lastN = prev && prev.log.length ? prev.log[prev.log.length - 1].n : 0;
   app.game = next;
-  if (app.mode === "local") app.viewerId = current(next).id;
+  if (app.mode === "local") app.viewerId = actor(next).id;
+  armTimer();
   show("game");
   renderGame(app);
   if (next.dice && next.seq !== prevSeq) showDice(next.dice);
@@ -80,7 +125,7 @@ function dispatch(action) {
   if (!app.game) return;
   if (app.mode === "guest") { app.net.send({ t: "action", action }); return; }
   try {
-    action.by = app.mode === "local" ? current(app.game).id : app.viewerId;
+    action.by = app.mode === "local" ? actor(app.game).id : app.viewerId;
     setGame(apply(app.game, action));
     if (app.mode === "host") broadcastState();
   } catch (e) {
@@ -90,7 +135,8 @@ function dispatch(action) {
 
 function broadcastState() {
   if (!app.net) return;
-  app.net.broadcast((pid) => ({ t: "state", state: app.game, you: pid, online: [...app.online] }));
+  const timeLeft = app.timeLeft();
+  app.net.broadcast((pid) => ({ t: "state", state: app.game, you: pid, online: [...app.online], timeLeft }));
 }
 
 // ------------------------------------------------------------------ lobby: local
@@ -100,13 +146,13 @@ function renderLocalNames() {
 }
 function readLocalNames() { return [...document.querySelectorAll("[data-local]")].map((i, k) => i.value.trim() || `Player ${k + 1}`); }
 
-function startLocal() {
+async function startLocal() {
   const names = readLocalNames();
   store.set("cf.localNames", names);
   const players = names.map((name, i) => ({ id: `p${i + 1}`, name }));
   app.mode = "local"; app.code = null; app.online = null;
   app.localIds = new Set(players.map((p) => p.id));
-  setGame(newGame({ seed: newSeed(), players, length: document.querySelector('[data-length="local"]').value }));
+  setGame(await makeGame(players, document.querySelector('[data-length="local"]').value));
 }
 
 // ------------------------------------------------------------------ lobby: host
@@ -124,7 +170,7 @@ async function host() {
         if (app.game) { // reconnecting to a game in progress
           const seat = app.lobby.find((p) => p.key === key && p.id !== "h");
           if (!seat) { conn.send({ t: "error", msg: "This game already started." }); return null; }
-          app.online.add(seat.id); setTimeout(() => { broadcastState(); renderGame(app); }, 50);
+          app.online.add(seat.id); setTimeout(() => { armTimer(); broadcastState(); renderGame(app); }, 50);
           toast(`${seat.name} is back 👋`);
           return seat.id;
         }
@@ -147,7 +193,7 @@ async function host() {
         app.online.delete(pid);
         const seat = app.lobby.find((p) => p.id === pid);
         if (seat) toast(`${seat.name} disconnected`);
-        if (app.game) { renderGame(app); broadcastState(); } else renderHostLobby();
+        if (app.game) { armTimer(); renderGame(app); broadcastState(); } else renderHostLobby();
       },
       onError(e) { console.warn(e); },
     });
@@ -168,10 +214,11 @@ function renderHostLobby() {
     <button class="btn btn--accent btn--block" data-act="startHost" ${app.lobby.length < 1 ? "disabled" : ""}>Start game with ${app.lobby.length} player${app.lobby.length > 1 ? "s" : ""}</button>`;
 }
 
-function startHost() {
+async function startHost() {
+  timer.limit = Number(document.querySelector("[data-timer]").value) || 0;
   const players = app.lobby.filter((p) => app.online.has(p.id)).map(({ id, name }) => ({ id, name }));
   app.lobby = app.lobby.filter((p) => app.online.has(p.id));
-  setGame(newGame({ seed: newSeed(), players, length: document.querySelector('[data-length="host"]').value }));
+  setGame(await makeGame(players, document.querySelector('[data-length="host"]').value));
   broadcastState();
 }
 
@@ -187,7 +234,7 @@ async function join() {
     app.net = await joinRoom(code, { name, key: clientKey }, {
       onMessage(msg) {
         if (msg.t === "lobby") { app.viewerId = msg.you; app.localIds = new Set([msg.you]); $("joinStatus").innerHTML = `Joined ✅ Waiting for the host to start… <br>In the room: ${msg.players.map((p) => p.name.replace(/</g, "&lt;")).join(", ")}`; }
-        else if (msg.t === "state") { app.viewerId = msg.you; app.localIds = new Set([msg.you]); app.online = new Set(msg.online || []); setGame(msg.state); }
+        else if (msg.t === "state") { app.viewerId = msg.you; app.localIds = new Set([msg.you]); app.online = new Set(msg.online || []); timer.guestDeadline = msg.timeLeft ? Date.now() + msg.timeLeft * 1000 : null; setGame(msg.state); }
         else if (msg.t === "error") { toast(msg.msg); if (!app.game) $("joinStatus").textContent = msg.msg; }
       },
       onClose() { toast("Disconnected from the host."); $("joinStatus").textContent = "Disconnected. Rejoin with the same code to take your seat back."; },
@@ -201,7 +248,7 @@ function openStatement(id, refresh = false) {
   const g = app.game, p = g.players.find((x) => x.id === id);
   if (!p) return;
   app.stmtFor = id;
-  const canManage = app.localIds.has(p.id) && current(g).id === p.id && !g.winner && g.phase !== "roll" && g.phase !== "choose";
+  const canManage = app.localIds.has(p.id) && current(g).id === p.id && actor(g).id === p.id && !g.winner && !["roll", "choose", "share"].includes(g.phase);
   $("stmtBody").innerHTML = statementHTML(g, p, canManage);
   if (!refresh) $("stmtDialog").showModal();
 }
@@ -225,9 +272,12 @@ document.addEventListener("click", (e) => {
     case "home": if (app.net) app.net.close(); location.href = location.pathname; break;
     case "stmt": openStatement(b.dataset.id); break;
     case "ROLL": case "PASS": case "END_TURN": case "CHARITY": dispatch({ type: act }); break;
+    case "PICK_DREAM": dispatch({ type: "PICK_DREAM", id: b.dataset.id }); break;
+    case "SET_401K": dispatch({ type: "SET_401K", rate: Number(b.dataset.rate) }); break;
+    case "coach": openCoach(app.game, app.viewerId); break;
     case "DEAL": dispatch({ type: "DEAL", size: b.dataset.size }); break;
     case "BUY": { const q = $("qty"); dispatch({ type: "BUY", qty: q ? Number(q.value) : undefined }); break; }
-    case "SELL_STOCK": { const inp = document.querySelector(`[data-sellqty="${CSS.escape(b.dataset.ticker)}"]`); const card = app.game.card; const own = current(app.game).stocks.find((s) => s.ticker === b.dataset.ticker); const qty = inp ? Number(inp.value) : (card && card.type === "stock" && $("qty") ? Number($("qty").value) : own ? own.shares : 0); dispatch({ type: "SELL_STOCK", ticker: b.dataset.ticker, qty: Math.min(qty, own ? own.shares : 0) || (own ? own.shares : 0) }); break; }
+    case "SELL_STOCK": { const inp = document.querySelector(`[data-sellqty="${CSS.escape(b.dataset.ticker)}"]`); const card = app.game.card; const own = actor(app.game).stocks.find((s) => s.ticker === b.dataset.ticker); const qty = inp ? Number(inp.value) : (card && card.type === "stock" && $("qty") ? Number($("qty").value) : own ? own.shares : 0); dispatch({ type: "SELL_STOCK", ticker: b.dataset.ticker, qty: Math.min(qty, own ? own.shares : 0) || (own ? own.shares : 0) }); break; }
     case "SELL_ASSET": if (app.game.card && app.game.card.type === "offer" || confirm("Fire sale? You get 90% of value minus fees and a 20% speed discount on your equity.")) dispatch({ type: "SELL_ASSET", id: b.dataset.id }); break;
     case "PAYOFF": dispatch({ type: "PAYOFF", key: b.dataset.key }); break;
     case "BORROW": dispatch({ type: "BORROW", amount: Number($("loanAmt").value) }); break;
@@ -238,6 +288,7 @@ document.querySelectorAll("dialog").forEach((d) => d.addEventListener("click", (
 
 // ------------------------------------------------------------------ boot
 renderLocalNames();
+initCoach();
 document.querySelector('[data-act="mute"]').textContent = isMuted() ? "🔇" : "🔊";
 $("hostName").value = $("joinName").value = store.get("cf.name", "");
 const params = new URLSearchParams(location.search);

@@ -69,6 +69,10 @@ export function soundFor(entry) {
   if (k === "hired") return sfx.hired;
   if (k === "charity_yes" || k === "charity_offer") return sfx.heart;
   if (k === "loan") return sfx.coins;
-  if (k === "win") return sfx.win;
+  if (k === "win" || k === "dream_win" || k === "fast_win" || k === "escaped") return sfx.win;
+  if (k === "cashflow_day" || k === "raise") return sfx.payday;
+  if (k === "lawsuit" || k === "audit" || k === "fast_crash") return sfx.alarm;
+  if (k === "badge") return sfx.coins;
+  if (k === "share_offer") return sfx.news;
   return null;
 }

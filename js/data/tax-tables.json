@@ -1,0 +1,156 @@
+{
+ "updated": "2026-10-22",
+ "note": "Auto-updated by .github/workflows/update-tax.yml. Brackets: [upper limit, rate], null = no limit.",
+ "years": {
+  "2026": {
+   "source": "IRS Rev. Proc. 2025-32 (https://www.irs.gov/pub/irs-drop/rp-25-32.pdf); SSA wage base; IRS 2026 COLA",
+   "standardDeduction": {
+    "single": 16100,
+    "married_joint": 32200,
+    "married_separate": 16100,
+    "head_household": 24150
+   },
+   "brackets": {
+    "single": [
+     [
+      12400,
+      0.1
+     ],
+     [
+      50400,
+      0.12
+     ],
+     [
+      105700,
+      0.22
+     ],
+     [
+      201775,
+      0.24
+     ],
+     [
+      256225,
+      0.32
+     ],
+     [
+      640600,
+      0.35
+     ],
+     [
+      null,
+      0.37
+     ]
+    ],
+    "married_joint": [
+     [
+      24800,
+      0.1
+     ],
+     [
+      100800,
+      0.12
+     ],
+     [
+      211400,
+      0.22
+     ],
+     [
+      403550,
+      0.24
+     ],
+     [
+      512450,
+      0.32
+     ],
+     [
+      768700,
+      0.35
+     ],
+     [
+      null,
+      0.37
+     ]
+    ],
+    "married_separate": [
+     [
+      12400,
+      0.1
+     ],
+     [
+      50400,
+      0.12
+     ],
+     [
+      105700,
+      0.22
+     ],
+     [
+      201775,
+      0.24
+     ],
+     [
+      256225,
+      0.32
+     ],
+     [
+      384350,
+      0.35
+     ],
+     [
+      null,
+      0.37
+     ]
+    ],
+    "head_household": [
+     [
+      17700,
+      0.1
+     ],
+     [
+      67450,
+      0.12
+     ],
+     [
+      105700,
+      0.22
+     ],
+     [
+      201750,
+      0.24
+     ],
+     [
+      256200,
+      0.32
+     ],
+     [
+      640600,
+      0.35
+     ],
+     [
+      null,
+      0.37
+     ]
+    ]
+   },
+   "fica": {
+    "socialSecurityRate": 0.062,
+    "socialSecurityWageBase": 184500,
+    "medicareRate": 0.0145,
+    "additionalMedicareRate": 0.009,
+    "additionalMedicareThreshold": {
+     "single": 200000,
+     "head_household": 200000,
+     "married_joint": 250000,
+     "married_separate": 125000
+    }
+   },
+   "limits": {
+    "k401": 24500,
+    "ira": 7500,
+    "hsaSelf": 4400,
+    "hsaFamily": 8750
+   },
+   "childTaxCredit": 2200
+  }
+ }
+}

@@ -89,3 +89,74 @@ export const STOCK_PRICING = {
   "HealthPets Inc.": { range: [10, 70], yield: 0.01 }, "Bright Energy": { range: [15, 80], yield: 0.035 }, "FreshFarms Foods": { range: [12, 55], yield: 0.03 },
   "TechGlobe Inc.": { range: [40, 400], yield: 0 }, "Lala Goods": { range: [6, 45], yield: 0 }, "FitLife Equipment": { range: [5, 50], yield: 0.01 },
 };
+
+// ---------------------------------------------------------------- Dreams & the Fast Track
+// Each player picks a dream at the start. In Classic games, escaping the rat race moves you to the Fast Track,
+// where you win by buying your dream (land on a Dream tile with enough cash) or adding $50k/mo of cashflow.
+export const DREAMS = [
+  { id: "stadiums", name: "Catch a game at every MLB stadium", cost: 90000, icon: "⚾" },
+  { id: "world", name: "A year traveling around the world", cost: 150000, icon: "🌍" },
+  { id: "parents", name: "Pay off your parents' house", cost: 300000, icon: "🏡" },
+  { id: "scholarship", name: "Start a scholarship fund at your old school", cost: 250000, icon: "🎓" },
+  { id: "studio", name: "Open a community music studio", cost: 200000, icon: "🎧" },
+  { id: "foodtruck", name: "Launch a food truck empire", cost: 180000, icon: "🌮" },
+  { id: "sabbatical", name: "A year-long sabbatical in Japan", cost: 120000, icon: "🗾" },
+  { id: "angel", name: "Become an angel investor in 10 startups", cost: 500000, icon: "🚀" },
+  { id: "dreamhome", name: "A paid-off dream home on the water", cost: 1200000, icon: "🌊" },
+  { id: "sportscomplex", name: "Build a youth sports complex", cost: 900000, icon: "🏀" },
+  { id: "worldcup", name: "Front-row seats at a whole World Cup", cost: 110000, icon: "⚽" },
+  { id: "island", name: "A private island getaway for the whole family", cost: 1500000, icon: "🏝️" },
+  { id: "rescue", name: "Fund an animal rescue sanctuary", cost: 350000, icon: "🐾" },
+  { id: "gallery", name: "Open an art gallery for local artists", cost: 400000, icon: "🖼️" },
+  { id: "space", name: "A seat on a commercial space flight", cost: 600000, icon: "🛰️" },
+  { id: "classic", name: "Restore a classic car collection", cost: 280000, icon: "🚗" },
+  { id: "film", name: "Produce an indie film", cost: 450000, icon: "🎬" },
+  { id: "garden", name: "Build community gardens across your city", cost: 160000, icon: "🌱" },
+];
+
+export const FAST_BOARD = [
+  "CashFlow Day", "Business", "Dream", "Business", "Lawsuit", "Business",
+  "CashFlow Day", "Business", "Dream", "Tax Audit", "Business", "Business",
+  "CashFlow Day", "Business", "Dream", "Business", "Market Crash", "Business",
+  "CashFlow Day", "Business", "Dream", "Business", "Lawsuit", "Business",
+];
+
+export const FAST_VENTURES = [
+  "Coffee franchise group (6 locations)", "Self-storage portfolio", "Community solar farm", "Minority stake in a pro sports team",
+  "Tech startup (Series A)", "Boutique hotel", "Car wash chain", "Medical office building", "Film production fund",
+  "200-unit apartment complex", "Data center lease", "Restaurant group", "EV charging network", "Vineyard & winery",
+  "Logistics warehouse portfolio", "Fitness franchise (10 gyms)", "Chain of laundromats", "Billboard network",
+];
+
+// ---------------------------------------------------------------- Money tips (shown once per player, the first time it happens)
+export const TIPS = {
+  negative_cashflow: "💡 Money tip: you just bought something with NEGATIVE cashflow, so it costs you money every month. Rich Dad rule: an asset puts money IN your pocket, a liability takes it OUT.",
+  first_stock: "💡 Money tip: stocks are great for growing cash, but one company is risky. Funds spread your money across many companies (diversification).",
+  dividends: "💡 Money tip: dividends are passive income. You get paid just for owning the shares. That's the vibe.",
+  payoff: "💡 Money tip: paying off high-interest debt (credit cards ~22%+) is a guaranteed return. Hard to beat that anywhere else.",
+  loan: "💡 Money tip: bank loans can fund good deals, but they add a payment every check. Borrow for assets, not for doodads.",
+  doodad: "💡 Money tip: doodads are wants dressed up as needs. A small emergency fund means surprises don't turn into debt.",
+  layoff: "💡 Money tip: this is why people keep 3–6 months of expenses in savings. An emergency fund buys you time to find the right job.",
+  quick_sale: "💡 Money tip: selling in a hurry costs you (that 20% hit). Liquidity, or having cash when you need it, has real value.",
+  charity: "💡 Money tip: generosity is part of wealth too. Plus, donations to charities can be tax-deductible if you itemize.",
+  no_match: "💡 Money tip: your employer matches 401(k) contributions, but you're putting in 0%. That's free money left on the table!",
+  match: "💡 Money tip: your employer is matching your 401(k), which is instant free money. It's locked until retirement, but it compounds for decades.",
+  first_property: "💡 Money tip: real estate pays you rent AND can grow in value. Always check the cashflow after the mortgage, not just the price.",
+  business: "💡 Money tip: owning a business means it can pay you even when you're not working. That's the passive-income dream.",
+  baby: "💡 Money tip: kids are expensive (childcare alone can be $1,000+/month), but there's a Child Tax Credit of $2,200 per kid.",
+  negative_paycheck: "💡 Money tip: when expenses beat income, debt grows fast. Cut a big expense or pay off a debt to stop the bleeding.",
+};
+
+export const BADGES = {
+  first_asset: { emoji: "🌱", label: "First asset" },
+  landlord: { emoji: "🏠", label: "Landlord" },
+  boss: { emoji: "🏪", label: "Business owner" },
+  dividends: { emoji: "📈", label: "Dividend earner" },
+  debt_slayer: { emoji: "✂️", label: "Debt slayer" },
+  debt_free: { emoji: "🕊️", label: "Consumer-debt free" },
+  generous: { emoji: "💛", label: "Generous" },
+  comeback: { emoji: "💪", label: "Comeback kid (hired after a layoff)" },
+  halfway: { emoji: "🧗", label: "Halfway out of the rat race" },
+  escaped: { emoji: "🚀", label: "Escaped the rat race" },
+  flipper: { emoji: "💰", label: "Sold an asset for a profit" },
+};

@@ -18,7 +18,7 @@
     <nav class="topbar__nav">
       <button class="btn btn--ghost btn--sm" data-act="mute" aria-label="Toggle sound" title="Sound on/off">🔊</button>
       <button class="btn btn--ghost btn--sm" data-act="rules">How to play</button>
-      <button class="btn btn--ghost btn--sm" data-act="coach" id="coachBtn" hidden>Ask Cash 💬</button>
+      <button class="btn btn--pink btn--sm" data-act="coach" id="coachBtn" hidden>Ask Cash 💬</button>
     </nav>
   </header>
 
@@ -40,7 +40,7 @@
             <button class="btn btn--ghost btn--sm" data-act="addLocal">+ Add player</button>
           </div>
           <label class="field"><span>Game length</span>
-            <select data-length="local"><option value="quick">Quick: passive income covers 60% of expenses</option><option value="standard" selected>Standard: passive income covers 100% of expenses</option></select>
+            <select data-length="local"><option value="quick">Quick: passive income covers 60% of expenses</option><option value="standard" selected>Standard: passive income covers 100% of expenses</option><option value="classic">Classic: escape, then win your dream on the Fast Track</option></select>
           </label>
           <button class="btn btn--accent btn--block" data-act="startLocal">Start game</button>
         </article>
@@ -50,7 +50,10 @@
           <p class="muted">Get a room code and share it. Friends join from their own phones or laptops.</p>
           <label class="field"><span>Your name</span><input id="hostName" maxlength="18" placeholder="e.g. Freeman" /></label>
           <label class="field"><span>Game length</span>
-            <select data-length="host"><option value="quick">Quick (60%)</option><option value="standard" selected>Standard (100%)</option></select>
+            <select data-length="host"><option value="quick">Quick (60%)</option><option value="standard" selected>Standard (100%)</option><option value="classic">Classic + Fast Track</option></select>
+          </label>
+          <label class="field"><span>Turn timer</span>
+            <select data-timer><option value="0">Off (offline players still auto-skip)</option><option value="60">60 seconds</option><option value="90" selected>90 seconds</option><option value="180">3 minutes</option></select>
           </label>
           <button class="btn btn--accent btn--block" data-act="host">Create room</button>
           <div id="hostLobby" class="hostlobby" hidden></div>
@@ -65,14 +68,18 @@
           <p id="joinStatus" class="status" aria-live="polite"></p>
         </article>
       </div>
-      <p class="footnote">Salaries: U.S. Bureau of Labor Statistics, May 2025. Taxes: IRS 2026 brackets. Every game is reproducible from its seed.</p>
+      <p class="footnote">Salaries: U.S. Bureau of Labor Statistics, May 2025. Taxes: the latest IRS brackets (auto-updated each year). Every game is reproducible from its seed.</p>
     </section>
 
     <!-- ================= GAME ================= -->
     <section class="screen game" id="game" hidden>
-      <div class="boardwrap">
-        <div class="board" id="board" aria-label="Game board"></div>
-        <div class="dice" id="dice" aria-live="polite"></div>
+      <div class="boardcol">
+        <div class="boardwrap">
+          <div class="board" id="board" aria-label="Game board"></div>
+          <div class="dice" id="dice" aria-live="polite"></div>
+        </div>
+        <div class="panel fast" id="fast" hidden></div>
+        <div class="panel ticker" id="ticker"></div>
       </div>
       <aside class="side">
         <div class="panel turn" id="turn"></div>
@@ -84,6 +91,7 @@
   </main>
 
   <dialog class="modal modal--wide" id="stmtDialog"><div class="modal__inner" id="stmtBody"></div></dialog>
+  <dialog class="modal" id="coachDialog"><div class="modal__inner" id="coachBody"></div></dialog>
   <dialog class="modal" id="rulesDialog">
     <div class="modal__inner rules">
       <button class="modal__close" data-act="close" aria-label="Close">×</button>
@@ -94,9 +102,14 @@
         <li><b>💡 Opportunity:</b> pick a <b>small deal</b> (stocks, funds, starter homes, small businesses) or a <b>big deal</b> (apartment buildings, commercial property, bigger businesses). Check the cashflow: some deals lose money!</li>
         <li><b>Events:</b> 🛍️ personal spending, 👶 new baby, 💛 charity (donate 10% to roll 2 dice for 3 turns), 📨 buyer offers for your property, 📉 layoffs, 📰 economic news that hits everyone.</li>
         <li><b>Manage money</b> (after rolling): sell stocks or property (quick sales take a 20% hit), pay off debts to cut expenses, or take a bank loan in $1,000 steps.</li>
+        <li><b>Deals get shared:</b> pass on a deal and the next player can grab it. Stocks are open to everyone at the same price after someone buys.</li>
+        <li><b>📈 Market:</b> prices drift every round and swing with news. Growth stocks pay no dividends, so sell them high. Dividend funds pay you to hold.</li>
+        <li><b>🏦 401(k):</b> pick a contribution %. Most employers match 50% up to 6%: free money, but it's locked for retirement and doesn't count toward escaping.</li>
+        <li><b>🚀 Classic mode:</b> escaping takes you to the <b>Fast Track</b>. Collect CashFlow Day (100× your monthly passive income), buy big businesses, dodge lawsuits and audits. Win by buying your <b>dream</b> or adding $50k/month of cashflow.</li>
+        <li><b>Online:</b> the host can set a turn timer. When it runs out, the game plays it safe for you (roll, small deal, pass, end turn). Disconnected players get skipped automatically.</li>
         <li><b>Between jobs?</b> You get unemployment benefits for a while. Job offers show up on Opportunity tiles, and your odds of getting hired improve every turn.</li>
       </ol>
-      <p class="muted">Taxes use 2026 federal brackets, FICA and approximate state rates. Salaries come from BLS wage data. It's a game, not financial advice 💅</p>
+      <p class="muted">Taxes use the latest IRS federal brackets (updated automatically when the IRS publishes new ones), FICA and approximate state rates. Raises come every 12 paychecks. Salaries come from BLS wage data. It's a game, not financial advice 💅</p>
     </div>
   </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

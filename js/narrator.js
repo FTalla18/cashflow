@@ -24,6 +24,16 @@ const LINES = {
   skip: ["{name} sits this turn out (job hunting) 🕐", "{name} is skipping a turn to regroup."],
   loan: ["{name} took a {amt} bank loan 🏦 Payment: {pay}/check. Use it wisely.", "Loan approved: {amt} for {name}. That's {pay} more per check 😬"],
   repay: ["{name} paid down {amt} of bank loans. Debt-free arc loading 📉", "{name} repaid {amt}. Less debt, more vibes."],
+  escaped: ["🚀 {name} ESCAPED THE RAT RACE! Passive income {passive} covers the bills. Next stop: the Fast Track. Go get that dream: {dream}.", "🚀 {name} is officially out of the rat race! Welcome to the Fast Track, where the dream ({dream}) is in reach."],
+  dream_win: ["🏆 {name} bought their dream: {dream}! That's the whole point of money, bestie. GG!", "🏆 DREAM UNLOCKED: {name} just paid for {dream}. Financially free AND living the dream. Legend."],
+  fast_win: ["🏆 {name} grew Fast Track cashflow by {amt}/mo. Generational wealth speedrun complete. GG!"],
+  cashflow_day: ["💸 CashFlow Day! {name} collects {amt}.", "CashFlow Day hits different 💸 {name} +{amt}."],
+  lawsuit: ["⚖️ {name} got sued and loses half their cash ({amt}). This is why you get an umbrella policy.", "⚖️ Lawsuit! {name} pays {amt}. Insurance matters, fr."],
+  audit: ["🧾 Tax audit: {name} owes {amt}. Keep your receipts, people.", "🧾 The IRS came knocking. {name} pays {amt}."],
+  fast_crash: ["📉 Market crash on the Fast Track: {name} loses {amt} of cash.", "📉 {name}'s cash takes a {amt} hit from a market crash."],
+  share_offer: ["{from} passed. {name}, want this deal? 👀", "Deal's up for grabs! {name}, you in?"],
+  raise: ["📈 Annual review: {name} got a {pct} raise, now {amt}/yr. Ask and you shall receive.", "Raise secured 💼 {name} is now making {amt}/yr (+{pct})."],
+  badge: ["🏅 {name} unlocked: {badge}", "🏅 New badge for {name}: {badge}"],
 };
 
 /** Pick a line for `key`, filling {placeholders} from vars. Deterministic per (seed, counter). */

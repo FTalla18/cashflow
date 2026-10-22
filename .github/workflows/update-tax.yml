@@ -1,0 +1,60 @@
+# Checks the IRS every month for a new year's tax tables and publishes them to the game automatically.
+# Tables are only published if they pass validation (every IRS base-tax amount must match our own math);
+# otherwise a GitHub issue is opened so nothing wrong ever reaches players.
+name: Update tax tables
+
+on:
+  schedule:
+    - cron: "0 14 1 * *"        # 1st of every month, 14:00 UTC
+    - cron: "0 14 15 10-12 *"   # plus mid-month in Oct–Dec, when the IRS usually publishes
+  workflow_dispatch:             # "Run workflow" button for manual updates (e.g. after new tax legislation)
+    inputs:
+      year:
+        description: "Tax year (optional)"
+        required: false
+      pdf:
+        description: "Rev. Proc. PDF URL (optional)"
+        required: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pypdf
+      - name: Fetch and validate new tax tables
+        id: fetch
+        env:
+          YEAR: ${{ github.event.inputs.year }}
+          PDF: ${{ github.event.inputs.pdf }}
+        run: |
+          set -o pipefail
+          args=()
+          [ -n "$YEAR" ] && args+=(--year "$YEAR")
+          [ -n "$PDF" ] && args+=(--pdf "$PDF")
+          python scripts/update_tax.py "${args[@]}" | tee update.log
+      - name: Publish if changed
+        run: |
+          if ! git diff --quiet js/data/tax-tables.json; then
+            git config user.name "tax-table-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add js/data/tax-tables.json
+            git commit -m "Update tax tables from the IRS (automatic)"
+            git push
+          else
+            echo "No new tax year to publish."
+          fi
+      - name: Open an issue if the update failed
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --title "Tax table update needs attention" \
+            --body "The automatic IRS tax-table update failed validation or couldn't parse the IRS document, so nothing was published. See the workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
