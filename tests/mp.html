@@ -1,0 +1,42 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;display:flex">
+<iframe id="A" src="../index.html?key=host-device" style="width:720px;height:900px;border:0"></iframe>
+<iframe id="B" src="../index.html?key=guest-device" style="width:720px;height:900px;border:0"></iframe>
+<script>
+const out=[]; const errs=[];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const loaded=f=>new Promise(r=>f.contentDocument&&f.contentDocument.readyState==='complete'?r():f.onload=r);
+(async()=>{
+ await loaded(A); await loaded(B); await sleep(800);
+ for (const f of [A,B]) { f.contentWindow.addEventListener('error',e=>errs.push(f.id+': '+e.message)); f.contentWindow.addEventListener('unhandledrejection',e=>errs.push(f.id+': '+e.reason)); }
+ const a=A.contentDocument, b=B.contentDocument;
+ // B gets its own storage key: different "device"
+ try { B.contentWindow.localStorage.setItem('cf.key', 'guest-device-key'); } catch {}
+ a.getElementById('hostName').value='Freeman'; a.querySelector('[data-act="host"]').click();
+ let code=null; for(let i=0;i<40 && !code;i++){ await sleep(500); const c=a.querySelector('.code'); if(c) code=c.textContent.trim(); }
+ out.push('room code: '+code);
+ if(!code){ out.push('host status: '+a.getElementById('hostLobby').textContent); return done(); }
+ b.getElementById('joinCode').value=code; b.getElementById('joinName').value='Jordan'; b.querySelector('[data-act="join"]').click();
+ for(let i=0;i<40;i++){ await sleep(500); if(/Players \(2/.test(a.getElementById('hostLobby').textContent)) break; }
+ out.push('host lobby: '+a.getElementById('hostLobby').textContent.replace(/\s+/g,' ').slice(0,120));
+ out.push('guest status: '+b.getElementById('joinStatus').textContent.replace(/\s+/g,' '));
+ a.querySelector('[data-act="startHost"]').click(); await sleep(1500);
+ out.push('guest sees game: '+!b.getElementById('game').hidden);
+ // play 14 clicks, whoever's turn it is clicks in their own window
+ for(let k=0;k<14;k++){
+   for (const d of [a,b]) {
+     const t=d.getElementById('turn'); const btn=t.querySelector('[data-act="ROLL"]')||t.querySelector('[data-act="DEAL"][data-size="small"]')||t.querySelector('[data-act="PASS"]')||t.querySelector('[data-act="END_TURN"]');
+     if(btn){ btn.click(); break; }
+   }
+   await sleep(1900);
+ }
+ const feedA=a.querySelector('#log p')?.textContent, feedB=b.querySelector('#log p')?.textContent;
+ const top=d=>d.getElementById('topInfo').textContent.replace(/\s+/g,' ');
+ out.push('host top: '+top(a)); out.push('guest top: '+top(b));
+ out.push('latest feed host : '+feedA); out.push('latest feed guest: '+feedB);
+ out.push('feeds identical: '+(a.getElementById('log').textContent===b.getElementById('log').textContent));
+ out.push('host turn panel : '+a.getElementById('turn').textContent.replace(/\s+/g,' ').slice(0,80));
+ out.push('guest turn panel: '+b.getElementById('turn').textContent.replace(/\s+/g,' ').slice(0,80));
+ done();
+})();
+function done(){ out.unshift('errors: '+JSON.stringify(errs)); fetch('/log',{method:'POST',body:out.join('\n')}); }
+</script></body></html>

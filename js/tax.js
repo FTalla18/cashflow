@@ -1,0 +1,65 @@
+// Federal, FICA and state tax for one bi-weekly paycheck: Freeman's original design
+// (intentionally detailed for financial education), updated to tax year 2026.
+// Sources: IRS Rev. Proc. 2025-32 (2026 brackets & standard deduction), SSA 2026 wage base,
+// IRS 2026 retirement / HSA limits.
+
+export const TAX_YEAR = 2026;
+export const PAYCHECKS_PER_YEAR = 26;
+
+export const FICA = {
+  socialSecurityRate: 0.062,
+  socialSecurityWageBase: 184500,
+  medicareRate: 0.0145,
+  additionalMedicareRate: 0.009,
+  // Additional Medicare tax threshold depends on filing status
+  additionalMedicareThreshold: { single: 200000, head_household: 200000, married_joint: 250000, married_separate: 125000 },
+};
+
+export const LIMITS = { k401: 24500, ira: 7500, hsaSelf: 4400, hsaFamily: 8750 };
+
+export const STANDARD_DEDUCTION = { single: 16100, married_joint: 32200, married_separate: 16100, head_household: 24150 };
+
+// [upper limit of bracket, rate]; the last bracket has no upper limit.
+export const BRACKETS = {
+  single: [[12400, 0.10], [50400, 0.12], [105700, 0.22], [201775, 0.24], [256225, 0.32], [640600, 0.35], [Infinity, 0.37]],
+  married_joint: [[24800, 0.10], [100800, 0.12], [211400, 0.22], [403550, 0.24], [512450, 0.32], [768700, 0.35], [Infinity, 0.37]],
+  married_separate: [[12400, 0.10], [50400, 0.12], [105700, 0.22], [201775, 0.24], [256225, 0.32], [384350, 0.35], [Infinity, 0.37]],
+  head_household: [[17700, 0.10], [67450, 0.12], [105700, 0.22], [201750, 0.24], [256200, 0.32], [640600, 0.35], [Infinity, 0.37]],
+};
+
+export const CHILD_TAX_CREDIT = 2200; // per qualifying child (simplified: no income phase-out)
+
+export const FILING_LABEL = { single: "Single", married_joint: "Married filing jointly", married_separate: "Married filing separately", head_household: "Head of household" };
+
+/** Federal income tax on an annual taxable income. */
+export function federalIncomeTax(taxable, status) {
+  let tax = 0, prev = 0;
+  for (const [limit, rate] of BRACKETS[status]) {
+    if (taxable <= prev) break;
+    tax += (Math.min(taxable, limit) - prev) * rate;
+    prev = limit;
+  }
+  return tax;
+}
+
+/**
+ * Taxes withheld from ONE bi-weekly paycheck, using the annualized method.
+ * @param {number} annualGross  annual wages
+ * @param {object} o  { status, stateRate, k401Annual, hsaAnnual, children }
+ * Pre-tax 401(k) and HSA contributions lower federal and state taxable income (HSA also skips FICA here
+ * for simplicity, as with a cafeteria plan). Returns per-paycheck amounts.
+ */
+export function paycheckTaxes(annualGross, { status = "single", stateRate = 0, k401Annual = 0, hsaAnnual = 0, children = 0 } = {}) {
+  const k401 = Math.min(k401Annual, LIMITS.k401);
+  const hsa = Math.min(hsaAnnual, children > 0 || status === "married_joint" ? LIMITS.hsaFamily : LIMITS.hsaSelf);
+  const ficaWages = Math.max(0, annualGross - hsa);
+  const socialSecurity = Math.min(ficaWages, FICA.socialSecurityWageBase) * FICA.socialSecurityRate;
+  const medicare = ficaWages * FICA.medicareRate + Math.max(0, ficaWages - FICA.additionalMedicareThreshold[status]) * FICA.additionalMedicareRate;
+  const taxable = Math.max(0, annualGross - k401 - hsa - STANDARD_DEDUCTION[status]);
+  const federal = Math.max(0, federalIncomeTax(taxable, status) - children * CHILD_TAX_CREDIT);
+  const state = Math.max(0, annualGross - k401 - hsa) * stateRate;
+  const per = (x) => Math.round((x / PAYCHECKS_PER_YEAR) * 100) / 100;
+  const out = { federal: per(federal), socialSecurity: per(socialSecurity), medicare: per(medicare), state: per(state), k401: per(k401), hsa: per(hsa) };
+  out.totalTax = Math.round((out.federal + out.socialSecurity + out.medicare + out.state) * 100) / 100;
+  return out;
+}

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CashFlow · Escape the Rat Race</title>
+  <meta name="description" content="A multiplayer financial-literacy board game: live a real-life character, beat the bills, buy assets, and escape the rat race." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='%233cf5a0'/><text x='32' y='45' font-size='36' text-anchor='middle' font-family='Arial' font-weight='700' fill='%230d0b1e'>$</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo" href="./" aria-label="CashFlow home"><span class="logo__mark">$</span><span>cashflow</span></a>
+    <div class="topbar__info" id="topInfo"></div>
+    <nav class="topbar__nav">
+      <button class="btn btn--ghost btn--sm" data-act="mute" aria-label="Toggle sound" title="Sound on/off">🔊</button>
+      <button class="btn btn--ghost btn--sm" data-act="rules">How to play</button>
+      <button class="btn btn--ghost btn--sm" data-act="coach" id="coachBtn" hidden>Ask Cash 💬</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ================= LOBBY ================= -->
+    <section class="screen lobby" id="lobby">
+      <div class="hero">
+        <p class="eyebrow">Real life · real money · real friends</p>
+        <h1>Escape the<br /><em>rat race.</em></h1>
+        <p class="lead">You get a real-life character: a job (or not), a city, rent or a mortgage, a car loan, maybe kids. Beat the bills, stack assets, and be the first whose <strong>passive income covers your expenses</strong>.</p>
+      </div>
+
+      <div class="modes">
+        <article class="mode">
+          <h2>🎮 Play on this device</h2>
+          <p class="muted">Pass-and-play with up to 6 players on one screen.</p>
+          <div id="localNames" class="names"></div>
+          <div class="row">
+            <button class="btn btn--ghost btn--sm" data-act="addLocal">+ Add player</button>
+          </div>
+          <label class="field"><span>Game length</span>
+            <select data-length="local"><option value="quick">Quick: passive income covers 60% of expenses</option><option value="standard" selected>Standard: passive income covers 100% of expenses</option></select>
+          </label>
+          <button class="btn btn--accent btn--block" data-act="startLocal">Start game</button>
+        </article>
+
+        <article class="mode">
+          <h2>🌐 Host an online game</h2>
+          <p class="muted">Get a room code and share it. Friends join from their own phones or laptops.</p>
+          <label class="field"><span>Your name</span><input id="hostName" maxlength="18" placeholder="e.g. Freeman" /></label>
+          <label class="field"><span>Game length</span>
+            <select data-length="host"><option value="quick">Quick (60%)</option><option value="standard" selected>Standard (100%)</option></select>
+          </label>
+          <button class="btn btn--accent btn--block" data-act="host">Create room</button>
+          <div id="hostLobby" class="hostlobby" hidden></div>
+        </article>
+
+        <article class="mode">
+          <h2>🔑 Join a game</h2>
+          <p class="muted">Enter the room code your friend shared.</p>
+          <label class="field"><span>Room code</span><input id="joinCode" maxlength="6" placeholder="ABC12" autocapitalize="characters" /></label>
+          <label class="field"><span>Your name</span><input id="joinName" maxlength="18" placeholder="e.g. Jordan" /></label>
+          <button class="btn btn--accent btn--block" data-act="join">Join</button>
+          <p id="joinStatus" class="status" aria-live="polite"></p>
+        </article>
+      </div>
+      <p class="footnote">Salaries: U.S. Bureau of Labor Statistics, May 2025. Taxes: IRS 2026 brackets. Every game is reproducible from its seed.</p>
+    </section>
+
+    <!-- ================= GAME ================= -->
+    <section class="screen game" id="game" hidden>
+      <div class="boardwrap">
+        <div class="board" id="board" aria-label="Game board"></div>
+        <div class="dice" id="dice" aria-live="polite"></div>
+      </div>
+      <aside class="side">
+        <div class="panel turn" id="turn"></div>
+        <div class="panel me" id="me"></div>
+        <div class="panel players" id="players"></div>
+        <div class="panel log" id="log" aria-live="polite"></div>
+      </aside>
+    </section>
+  </main>
+
+  <dialog class="modal modal--wide" id="stmtDialog"><div class="modal__inner" id="stmtBody"></div></dialog>
+  <dialog class="modal" id="rulesDialog">
+    <div class="modal__inner rules">
+      <button class="modal__close" data-act="close" aria-label="Close">×</button>
+      <h2>How to play</h2>
+      <ol>
+        <li><b>Goal:</b> be the first whose <b>passive income</b> (dividends, rentals, businesses) covers your <b>living expenses</b>. That's escaping the rat race.</li>
+        <li><b>Your turn:</b> roll the dice and move. Every <b>💰 Pay Day</b> you land on or pass pays your paycheck: income minus taxes, savings and bills.</li>
+        <li><b>💡 Opportunity:</b> pick a <b>small deal</b> (stocks, funds, starter homes, small businesses) or a <b>big deal</b> (apartment buildings, commercial property, bigger businesses). Check the cashflow: some deals lose money!</li>
+        <li><b>Events:</b> 🛍️ personal spending, 👶 new baby, 💛 charity (donate 10% to roll 2 dice for 3 turns), 📨 buyer offers for your property, 📉 layoffs, 📰 economic news that hits everyone.</li>
+        <li><b>Manage money</b> (after rolling): sell stocks or property (quick sales take a 20% hit), pay off debts to cut expenses, or take a bank loan in $1,000 steps.</li>
+        <li><b>Between jobs?</b> You get unemployment benefits for a while. Job offers show up on Opportunity tiles, and your odds of getting hired improve every turn.</li>
+      </ol>
+      <p class="muted">Taxes use 2026 federal brackets, FICA and approximate state rates. Salaries come from BLS wage data. It's a game, not financial advice 💅</p>
+    </div>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

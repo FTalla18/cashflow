@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8" /><title>CashFlow engine tests</title>
+<style>body{font:14px/1.5 system-ui;margin:24px} .pass{color:#15803d} .fail{color:#b91c1c;font-weight:600} small{color:#666}</style></head>
+<body><h1>Engine tests</h1><ul id="out"><li>running…</li></ul>
+<script type="module">
+  const out = document.getElementById("out");
+  try {
+    const { results } = await import("./engine.test.js");
+    out.innerHTML = results.map((r) => `<li class="${r.pass ? "pass" : "fail"}">${r.pass ? "✔" : "✘"} ${r.name} <small>${r.detail || ""}</small></li>`).join("");
+    const text = results.map((r) => `${r.pass ? "PASS" : "FAIL"}  ${r.name}${r.detail ? "  | " + r.detail : ""}`).join("\n");
+    fetch("/log", { method: "POST", body: text }).catch(() => {});
+  } catch (e) {
+    out.innerHTML = `<li class="fail">CRASH: ${e.stack}</li>`;
+    fetch("/log", { method: "POST", body: "CRASH " + e.stack }).catch(() => {});
+  }
+</script></body></html>

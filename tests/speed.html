@@ -1,0 +1,9 @@
+<!DOCTYPE html><html><body><script type="module">
+import { newGame, apply, current } from "../js/engine.js";
+const players = [1,2,3,4,5,6].map(i => ({ id: "p"+i, name: "P"+i }));
+let t0 = performance.now(); for (let i = 0; i < 200; i++) newGame({ seed: "s"+i, players }); const setup = (performance.now()-t0)/200;
+let g = newGame({ seed: "speed", players }); t0 = performance.now(); let n = 0;
+for (let i = 0; i < 300; i++) { const p = current(g); try { g = apply(g, g.phase === "roll" ? {type:"ROLL",by:p.id} : g.phase === "choose" ? {type:"DEAL",size:"small",by:p.id} : g.phase === "decide" ? {type:"PASS",by:p.id} : {type:"END_TURN",by:p.id}); n++; } catch(e) {} }
+const move = (performance.now()-t0)/n;
+fetch("/log",{method:"POST",body:`6-player game setup: ${setup.toFixed(2)} ms\naverage move: ${move.toFixed(2)} ms\nstate size: ${(JSON.stringify(g).length/1024).toFixed(0)} KB`});
+</script></body></html>

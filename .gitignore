@@ -1,0 +1,5 @@
+# Never commit API keys or local secrets
+GKey.txt
+*.key
+.env
+.DS_Store

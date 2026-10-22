@@ -1,0 +1,13 @@
+<!DOCTYPE html><html><body><script type="module">
+import { newGame, statement } from "../js/engine.js";
+const agg = {}, rows = []; let n = 0, neg = 0;
+for (let i = 0; i < 400; i++) {
+  const p = newGame({ seed: `char-${i}`, players: [{ id: 1, name: "X" }] }).players[0];
+  if (!p.job.employed) continue;
+  const s = statement(p), g = p.job.annual / 26; n++;
+  if (s.netPay < 0) { neg++; rows.push(`${p.job.title} $${p.job.annual} ${p.life.city} ${p.life.housing} kids=${p.life.children} net=${Math.round(s.netPay)} | ` + s.expenses.map(e => `${e.label.split(' ')[0]}:${Math.round(e.amount)}`).join(' ')); }
+  for (const e of s.expenses) { const k = e.label.replace(/\(.*\)/, '').trim(); agg[k] = (agg[k] || 0) + e.amount / g; }
+}
+const out = [`employed ${n}, negative ${neg} (${Math.round(100*neg/n)}%)`, 'avg share of gross pay:', ...Object.entries(agg).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `  ${k}: ${(100*v/n).toFixed(1)}%`), 'examples of negative:', ...rows.slice(0, 8)];
+fetch('/log', { method: 'POST', body: out.join('\n') });
+</script></body></html>

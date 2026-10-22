@@ -1,0 +1,26 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0">
+<iframe id="f" src="../index.html" style="width:1440px;height:1000px;border:0"></iframe>
+<script>
+const errs=[]; let clicks=0;
+f.onload=()=>{const w=f.contentWindow,d=f.contentDocument;
+ w.addEventListener('error',e=>errs.push(e.message)); w.addEventListener('unhandledrejection',e=>errs.push(String(e.reason)));
+ try{w.localStorage.clear()}catch{}
+ setTimeout(()=>{
+  const n=d.querySelectorAll('[data-local]'); n[0].value='Freeman'; n[1].value='Jordan';
+  d.querySelector('[data-act="addLocal"]').click();
+  setTimeout(()=>{ d.querySelectorAll('[data-local]')[2].value='Taylor'; d.querySelector('[data-act="startLocal"]').click(); step(); },100);
+ },500);
+ function step(){
+  if(clicks>=Number(new URLSearchParams(location.search).get('n')||24)){ finish(); return; }
+  const t=d.getElementById('turn'); let b=t.querySelector('[data-act="ROLL"]')||t.querySelector('[data-act="DEAL"][data-size="small"]')||t.querySelector('[data-act="BUY"]:not([disabled])')||t.querySelector('[data-act="CHARITY"]:not([disabled])')||t.querySelector('[data-act="PASS"]')||t.querySelector('[data-act="END_TURN"]');
+  if(b){ b.click(); clicks++; }
+  setTimeout(step, 1700);
+ }
+ function finish(){
+  const g=JSON.parse(w.localStorage.getItem('cf.lastGame')||'null');
+  const lines=[`errors: ${JSON.stringify(errs)}`,`clicks: ${clicks}`,`round: ${g&&g.game.round}`, ...(g?g.game.log.slice(-14).map(l=>`[${l.key||l.kind}] ${l.text}`):[])];
+  if(new URLSearchParams(location.search).get('stmt')) d.querySelector('#me [data-act="stmt"]').click();
+  fetch('/log',{method:'POST',body:lines.join('\n')});
+ }
+};
+</script></body></html>
