@@ -10,7 +10,7 @@ const ready=()=>new Promise(r=>{f.onload=()=>{f.contentWindow.addEventListener('
   w.location.reload(); await ready(); await sleep(500); d=f.contentDocument; w=f.contentWindow;
   out.push('saves panel before: '+d.getElementById('saves').textContent.replace(/\s+/g,' ').slice(0,90));
   d.querySelector('[data-act="startLocal"]').click(); await sleep(800);
-  for(let k=0;k<10;k++){ const t=d.getElementById('turn'); const b=t.querySelector('[data-act="ROLL"]')||t.querySelector('[data-act="DEAL"][data-size="small"]')||t.querySelector('[data-act="PASS"]')||t.querySelector('[data-act="END_TURN"]'); if(b) b.click(); await sleep(1700); }
+  for(let k=0;k<10;k++){ const t=d.body; const b=t.querySelector('[data-act="ROLL"]')||t.querySelector('[data-act="DEAL"][data-size="small"]')||t.querySelector('[data-act="PASS"]')||t.querySelector('[data-act="END_TURN"]'); if(b) b.click(); await sleep(1700); }
   const before=JSON.stringify(JSON.parse(w.localStorage.getItem('cf.saves'))[0].game);
   w.location.reload(); await ready(); await sleep(600); d=f.contentDocument; w=f.contentWindow;
   out.push('saves panel after reload: '+d.getElementById('saves').textContent.replace(/\s+/g,' ').slice(0,140));
@@ -18,9 +18,9 @@ const ready=()=>new Promise(r=>{f.onload=()=>{f.contentWindow.addEventListener('
   out.push('game visible: '+!d.getElementById('game').hidden);
   const after=JSON.stringify(JSON.parse(w.localStorage.getItem('cf.saves'))[0].game);
   out.push('state identical after resume: '+(before===after));
-  out.push('turn: '+d.getElementById('turn').textContent.replace(/\s+/g,' ').slice(0,60));
+  out.push('turn: '+d.body.textContent.replace(/\s+/g,' ').slice(0,60));
   // keep playing after resume
-  const t=d.getElementById('turn'); const b=t.querySelector('[data-act="ROLL"]')||t.querySelector('[data-act="PASS"]')||t.querySelector('[data-act="END_TURN"]')||t.querySelector('[data-act="DEAL"]'); b.click(); await sleep(1500);
+  const t=d.body; const b=t.querySelector('[data-act="ROLL"]')||t.querySelector('[data-act="PASS"]')||t.querySelector('[data-act="END_TURN"]')||t.querySelector('[data-act="DEAL"]'); b.click(); await sleep(1500);
   out.push('moves after resume: '+(JSON.parse(w.localStorage.getItem('cf.saves'))[0].game.seq > JSON.parse(before).seq));
   out.unshift('errors: '+JSON.stringify(errs));
   fetch('/log',{method:'POST',body:out.join('\n')});

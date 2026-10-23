@@ -20,15 +20,15 @@ A multiplayer board game (1–6 players, same device or online with a room code)
 - **Opportunity 💡:** choose a **small deal** (stocks, funds, starter homes, condos, duplexes, small businesses) or a **big deal** (apartment buildings, commercial property, bigger businesses). If you're between jobs, sometimes it's a job offer.
 - **Charity 💛:** donate 10% of a paycheck's income to roll 2 dice for your next 3 turns.
 - **Personal Spending 🛍️:** a "doodad" you must pay for (scaled to your income).
-- **New Baby 👶:** child costs go up (max 4 kids). Single parents file as head of household. Each kid gets a $2,200 Child Tax Credit.
+- **New Baby 👶:** child costs go up. Each child makes another less likely (90% with no kids, then 60%, 35%, 15%; max 4). Otherwise it's a family milestone (a birthday party or reunion) that costs a little cash. Single parents file as head of household. Each kid gets a $2,200 Child Tax Credit.
 - **RE Offer 📨:** a buyer offers 105–160% of value for a certain property type. Sell if you own one.
-- **Downsizing 📉:** layoff. You get unemployment benefits (45% of pay, max $1,100/check, for 12 checks), health insurance gets more expensive, and you skip a turn. Your chance of getting hired grows every turn you're unemployed.
+- **Downsizing 📉:** usually a furlough, like the original game: pay one check of expenses and sit out a turn, but you keep your job. About 40% of the time it's a real layoff: 2 paychecks of severance, then unemployment benefits (45% of pay, max $1,100/check, for 12 checks), pricier health insurance, and you skip a turn. Gig workers get a slow stretch instead. Hiring odds start at 18% per turn and grow 8% each paycheck you're unemployed (up to 70%).
 - **Economic Event 📰:** affects everyone: stock booms/crashes, housing up/down, interest-rate shifts, inflation, rent spikes, layoff waves.
 
 ## Deals and the math
 - **Real estate/business card:** price, down payment, loan and rate, monthly income after operating costs (NOI), loan payment, and **cashflow** = NOI − loan payment.
 - **Cash-on-cash return** = (monthly cashflow × 12) ÷ down payment. Above 10% is good, above 20% is great. Negative cashflow = a liability that costs you every month.
-- **Stocks:** growth stocks usually pay no dividends (they don't count toward escaping), so buy low and sell high when the same stock card comes up. **Funds** (dividend index, Treasury bonds, REIT index) pay dividends, which ARE passive income.
+- **Stocks:** every stock card shows its 52-week range and where today's price sits (near the low 🔥, mid-range, or near the high ⚠️). Patient investors wait for prices near the low. Growth stocks usually pay no dividends (they don't count toward escaping), so buy low and sell high when the same stock card comes up. **Funds** (dividend index, Treasury bonds, REIT index) pay dividends, which ARE passive income.
 - **The market:** every ticker has a price history (shown in the 📈 Market panel). Prices drift each round and jump on news. A stock card can move the price up (good news) or down (bad news).
 - **Selling:** on a matching stock card you sell at market. Otherwise a quick sale costs 20%. Property sells at the buyer's offer on an RE Offer tile, or as a fire sale (90% of value, minus 5% fees, minus 20% of equity) any time.
 - **Deal sharing:** if you pass on a deal, the next player who can afford it gets offered it. If you buy a stock, everyone else can buy it at the same price too.

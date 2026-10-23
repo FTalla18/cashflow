@@ -131,7 +131,9 @@ function setPrice(state, ticker, price) {
 /** Every new round the market drifts a little (funds move less than single stocks). */
 function marketDrift(state, rng) {
   for (const [ticker, t] of Object.entries(state.market)) {
-    const m = t.fund ? rng.tri(0.985, 1.004, 1.02) : rng.tri(0.94, 1.0, 1.07) * (0.995 + (state.economy.stocks - 1) * 0.02);
+    let m = t.fund ? rng.tri(0.985, 1.004, 1.02) : rng.tri(0.94, 1.0, 1.07) * (0.995 + (state.economy.stocks - 1) * 0.02);
+    const mid = (t.range[0] + t.range[1]) / 2;
+    m *= 1 + clamp((mid / t.price - 1) * 0.05, -0.04, 0.04); // prices drift back toward their normal range over time
     setPrice(state, ticker, t.price * m);
   }
 }
@@ -415,15 +417,22 @@ function checkProgress(state, p) {
 const checkWin = checkProgress;
 
 // ---------------------------------------------------------------- cards
+/** 52-week range: the stock's normal trading range, widened by anything it actually did recently. */
+export function range52(t) {
+  return [Math.min(t.range[0], ...t.hist), Math.max(t.range[1], ...t.hist)];
+}
+
 function makeStockCard(state, rng) {
   const st = rng.pick(STOCKS);
-  const storyIdx = rng.int(0, 2);
   const t = state.market[st.name];
-  const bullish = storyIdx < 2;
-  const move = bullish ? rng.tri(1.03, 1.12, 1.35) : rng.tri(0.55, 0.8, 0.96);
-  const price = Math.round(clamp(t.price * move, Math.max(1, t.range[0] * 0.4), t.range[1] * 1.8));
+  const [lo, hi] = range52(t);
+  // Card prices land anywhere in the 52-week range, a bit more often in the lower half, so patient buyers
+  // get real bargains and the top of the range is a warning sign (not the default).
+  const price = Math.max(1, Math.round(lo + Math.pow(rng.next(), 1.25) * (hi - lo)));
+  const bullish = price >= t.price;
+  const story = st.stories[bullish ? rng.int(0, 1) : 2];
   setPrice(state, st.name, price);
-  return { type: "stock", ticker: st.name, story: st.stories[storyIdx], bullish, price, yield: t.yield, range: [Math.min(...t.hist), Math.max(...t.hist)] };
+  return { type: "stock", ticker: st.name, story, bullish, price, yield: t.yield, range: range52(state.market[st.name]) };
 }
 
 function makeFundCard(state, rng) {
@@ -532,8 +541,13 @@ function resolveTile(state, rng, p) {
       break;
     }
     case "New Baby": {
-      if (p.life.children >= MAX_CHILDREN) log(state, `${p.name} landed on New Baby but the house is already full (${MAX_CHILDREN} kids). No change.`, "info", p.id);
-      else {
+      // Soft limit: each child makes another one less likely (90% → 60% → 35% → 15%, max 4).
+      const babyOdds = [0.9, 0.6, 0.35, 0.15][p.life.children] || 0;
+      if (!rng.chance(babyOdds)) {
+        const cost = nice(p.life.col * rng.tri(120, 250, 600), 10);
+        payCash(state, p, cost, "a family celebration");
+        log(state, `🎂 Family milestone: no new baby this time${p.life.children ? `, but ${p.name}'s ${p.life.children > 1 ? "kids'" : "kid's"} birthday party` : `, but a family reunion trip`} cost ${money(cost)}.`, "info", p.id);
+      } else {
         p.life.children += 1;
         const add = nice(p.life.col * rng.tri(450, 650, 1150), 10);
         if (!p.living.kids) p.living.kids = { label: "Child care & costs", monthly: 0 };
@@ -546,8 +560,17 @@ function resolveTile(state, rng, p) {
       break;
     }
     case "Downsizing": {
-      if (p.job.employed) layoff(state, p, true);
-      else {
+      // Like the original game, most downsizings are temporary (pay one check of expenses, sit out a turn).
+      // Some are real layoffs. Gig workers just have a slow stretch.
+      if (p.job.employed && !p.job.gig && rng.chance(0.4)) layoff(state, p, true);
+      else if (p.job.employed) {
+        const s = statement(p);
+        payCash(state, p, s.livingExpenses, p.job.gig ? "a slow stretch" : "a furlough");
+        p.skip = 1;
+        log(state, p.job.gig
+          ? `📉 Slow stretch: gigs dried up. ${p.name} covers one check of expenses (${money(s.livingExpenses)}) and sits out a turn.`
+          : `📉 Furlough: ${p.name}'s company cut hours for a few weeks. Pay one check of expenses (${money(s.livingExpenses)}) and sit out a turn, but the job is safe.`, "warn", p.id, "downsized");
+      } else {
         const s = statement(p);
         payCash(state, p, s.livingExpenses, "a rough patch");
         log(state, `${p.name} is already job hunting. Tough break: pay one check of expenses (${money(s.livingExpenses)}).`, "warn", p.id);
@@ -593,10 +616,13 @@ function layoff(state, p, skipTurn) {
   p.job.benefit = Math.round(Math.min((p.job.annual / PP) * 0.45, BENEFIT_CAP));
   p.job.benefitsLeft = BENEFIT_CHECKS;
   p.k401Rate = 0; p.hsaAnnual = 0;
+  const severance = Math.round((p.job.annual / PP) * 2); // typical: ~2 weeks of pay per year worked; here a flat 2 paychecks
+  p.cash = r2(p.cash + severance);
   if (p.living.health) p.living.health.monthly = Math.round(p.living.health.monthly * 2.2); // losing employer coverage
   if (skipTurn) p.skip = 1;
   p.stats.layoffs += 1;
   narrate(state, "downsized", { name: p.name, amt: money(p.job.benefit) }, p.id);
+  log(state, `💼 Severance: ${money(severance)} (2 paychecks) to help bridge the gap.`, "info", p.id);
   tip(state, p, "layoff");
 }
 
@@ -622,7 +648,7 @@ function econEvent(state, rng) {
     case "rate_shift": { const next = rng.pick(ECONOMIES.filter((e) => e.id !== state.economy.id)); state.economy = makeEconomy(rng, next); headline = `New economy: ${state.economy.name}: ${state.economy.headline}. New loans now at ${(state.economy.mortgage * 100).toFixed(1)}% (mortgage) / ${(state.economy.personal * 100).toFixed(0)}% (bank).`; break; }
     case "inflation": { const m = r2(rng.tri(1.03, 1.05, 1.09)); ps.forEach((p) => { p.living.other.monthly = nice(p.living.other.monthly * m, 10); }); headline = `Inflation bites: everyday costs up ${Math.round((m - 1) * 100)}% for everyone.`; break; }
     case "rent_spike": { const m = r2(rng.tri(1.05, 1.08, 1.14)); const renters = ps.filter((p) => p.living.rent); renters.forEach((p) => (p.living.rent.monthly = nice(p.living.rent.monthly * m, 10))); headline = `Landlords raise rents ${Math.round((m - 1) * 100)}%.${renters.length ? ` Renters affected: ${renters.map((p) => p.name).join(", ")}.` : " Luckily nobody here rents."}`; break; }
-    case "layoffs": { const hit = ps.filter((p) => p.job.employed && !p.job.gig && !p.fast && rng.chance(0.2)); headline = `Layoff wave across industries.${hit.length ? ` Hit: ${hit.map((p) => p.name).join(", ")}.` : " Everyone at this table survived 😮‍💨"}`; hit.forEach((p) => layoff(state, p, false)); break; }
+    case "layoffs": { const hit = ps.filter((p) => p.job.employed && !p.job.gig && !p.fast && rng.chance(0.12)); headline = `Layoff wave across industries.${hit.length ? ` Hit: ${hit.map((p) => p.name).join(", ")}.` : " Everyone at this table survived 😮‍💨"}`; hit.forEach((p) => layoff(state, p, false)); break; }
   }
   narrate(state, "econ", { headline }, null);
   ps.forEach((p) => checkProgress(state, p));
@@ -956,7 +982,7 @@ function advance(state, rng) {
     if (p.skip > 0) { p.skip -= 1; narrate(state, "skip", { name: p.name }, p.id); continue; }
     // Job hunting: the longer you look, the better your odds.
     if (!p.job.employed && !p.fast) {
-      const odds = clamp(0.12 + p.job.checksUnemployed * 0.06, 0.12, 0.6);
+      const odds = clamp(0.18 + p.job.checksUnemployed * 0.08, 0.18, 0.7);
       if (rng.chance(odds)) hire(state, p, makeJobCard(rng, p));
     }
     break;

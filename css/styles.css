@@ -233,3 +233,52 @@ button, input, select { font: inherit; }
 .savelist { display: grid; gap: 8px; }
 .saverow { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
 .saverow small { display: block; }
+
+/* ---- calmer layout: card stage on the board, bottom action dock, folding sections */
+.stage { position: absolute; inset: 7%; display: grid; place-items: center; z-index: 5; pointer-events: none; }
+.stage > * { pointer-events: auto; width: min(100%, 460px); max-height: 100%; overflow: auto; box-shadow: 0 30px 80px -20px rgba(0,0,0,.85), 0 0 0 1px var(--line); animation: deal .35s ease both; background: var(--bg-2); }
+.stage > .winner, .stage > .report { padding: 16px; border-radius: var(--radius); }
+.stage:has(.report) > * { width: min(100%, 620px); }
+@keyframes deal { from { transform: translateY(18px) scale(.96); opacity: 0; } }
+.dice { z-index: 6; }
+
+body.in-game { padding-bottom: 96px; }
+.dock { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 30; width: min(760px, calc(100% - 24px)); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px 10px 16px; border-radius: 22px; background: rgba(21,18,44,.92); backdrop-filter: blur(14px); border: 1px solid var(--line); box-shadow: 0 20px 50px -15px rgba(0,0,0,.8); }
+.dock__who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.dock__who b { display: block; font-family: var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dock__who small { display: block; color: var(--muted); font-size: .78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dock__btns { display: flex; align-items: center; gap: 8px; flex: none; }
+.btn--big { padding: 13px 24px; font-size: 1.02rem; }
+.btn--icon { width: 44px; height: 44px; padding: 0; }
+
+.fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary h3 { margin: 0; }
+.fold__hint { font-size: .78rem; flex: 1; min-width: 0; }
+.fold__chev { margin-left: auto; color: var(--muted); transition: transform .2s; }
+.fold[open] > summary .fold__chev { transform: rotate(180deg); }
+.fold__body { padding-top: 8px; }
+.me .fold { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; font-size: .86rem; }
+.log .fold { margin-top: 2px; }
+.log .fold__body { display: grid; gap: 6px; }
+
+.sitefoot { text-align: center; color: var(--text); font-size: .82rem; padding: 18px 16px 24px; border-top: 1px solid var(--line); margin-top: 20px; }
+body.in-game .sitefoot { padding-bottom: 110px; }
+
+@media (max-width: 1000px) {
+  .stage { position: fixed; inset: auto 12px 92px 12px; max-height: 62vh; place-items: end center; }
+}
+@media (max-width: 520px) {
+  .dock { padding: 8px 8px 8px 12px; bottom: 8px; }
+  .dock__who small { display: none; }
+  .btn--big { padding: 11px 16px; }
+}
+.rbar { position: relative; display: inline-block; width: 70px; height: 6px; border-radius: 999px; background: linear-gradient(90deg, var(--mint), var(--yellow), var(--red)); vertical-align: middle; }
+.rbar i { position: absolute; top: -3px; width: 3px; height: 12px; margin-left: -1px; background: var(--text); border-radius: 2px; }
+@media (max-width: 700px) {
+  .topbar { flex-wrap: wrap; row-gap: 8px; }
+  .topbar__nav { margin-left: auto; }
+  .topbar__info { order: 3; flex-basis: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .topbar__info::-webkit-scrollbar { display: none; }
+  body.in-game #coachBtn { display: none !important; }
+}

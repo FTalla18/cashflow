@@ -274,6 +274,28 @@ function simulate(seed, nPlayers, maxRounds = 300, length = "standard") {
   ok("old saved games get a credit score on the next move", !!apply(old, { type: "ROLL", by: "1" }).players[0].credit);
 }
 
+// ---------- 10. Balance: babies, stock prices
+{
+  let maxKids = 0, babies = 0, landings = 0;
+  for (let i = 0; i < 30; i++) {
+    const { state } = simulate(`kids-${i}`, 3, 120);
+    for (const p of state.players) maxKids = Math.max(maxKids, p.life.children);
+    babies += state.log.filter((l) => l.key === "baby").length;
+  }
+  ok("never more than 4 kids", maxKids <= 4, `max ${maxKids}, ${babies} babies in 30 games`);
+  // where stock cards land in their 52-week range
+  const pos = [];
+  for (let i = 0; i < 40; i++) {
+    let g = newGame({ seed: `stk-${i}`, players: [{ id: 1, name: "A" }, { id: 2, name: "B" }] });
+    for (let k = 0; k < 400 && g.phase !== "over"; k++) {
+      if (g.phase === "decide" && g.card && g.card.type === "stock" && !g.card.fund) { const [lo, hi] = g.card.range; pos.push(hi > lo ? (g.card.price - lo) / (hi - lo) : 0.5); }
+      try { g = apply(g, botAction(g, new Rng("s" + k))); } catch (e) { if (!(e instanceof GameError)) throw e; g = apply(g, { type: g.phase === "decide" || g.phase === "share" ? "PASS" : "END_TURN", by: actor(g).id }); }
+    }
+  }
+  const top = pos.filter((x) => x >= 0.75).length / pos.length, low = pos.filter((x) => x <= 0.25).length / pos.length;
+  ok("stock cards rarely sit at the top of their 52-week range", top < 0.3 && low > 0.2, `${pos.length} cards: ${Math.round(low * 100)}% near the low, ${Math.round(top * 100)}% near the high`);
+}
+
 // ---------- 8. Classic mode game length
 {
   const rr = [];

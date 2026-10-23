@@ -38,6 +38,8 @@ function show(screen) {
   $("lobby").hidden = screen !== "lobby";
   $("game").hidden = screen !== "game";
   $("saveBtn").hidden = screen !== "game";
+  $("dock").hidden = screen !== "game";
+  document.body.classList.toggle("in-game", screen === "game");
 }
 function newSeed() { return crypto.getRandomValues(new Uint32Array(2)).join("-"); }
 

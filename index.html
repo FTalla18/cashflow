@@ -79,18 +79,20 @@
         <div class="boardwrap">
           <div class="board" id="board" aria-label="Game board"></div>
           <div class="dice" id="dice" aria-live="polite"></div>
+          <div class="stage" id="stage" hidden></div>
         </div>
         <div class="panel fast" id="fast" hidden></div>
         <div class="panel ticker" id="ticker"></div>
       </div>
       <aside class="side">
-        <div class="panel turn" id="turn"></div>
         <div class="panel me" id="me"></div>
         <div class="panel players" id="players"></div>
         <div class="panel log" id="log" aria-live="polite"></div>
       </aside>
     </section>
   </main>
+  <div class="dock" id="dock" aria-live="polite" hidden></div>
+  <footer class="sitefoot"><b>CashFlow: Escape the Rat Race</b> · by Freeman T. · <span class="muted">a financial-literacy game, not financial advice</span></footer>
 
   <dialog class="modal modal--wide" id="stmtDialog"><div class="modal__inner" id="stmtBody"></div></dialog>
   <dialog class="modal" id="coachDialog"><div class="modal__inner" id="coachBody"></div></dialog>
@@ -102,7 +104,7 @@
         <li><b>Goal:</b> be the first whose <b>passive income</b> (dividends, rentals, businesses) covers your <b>living expenses</b>. That's escaping the rat race.</li>
         <li><b>Your turn:</b> roll the dice and move. Every <b>💰 Pay Day</b> you land on or pass pays your paycheck: income minus taxes, savings and bills.</li>
         <li><b>💡 Opportunity:</b> pick a <b>small deal</b> (stocks, funds, starter homes, small businesses) or a <b>big deal</b> (apartment buildings, commercial property, bigger businesses). Check the cashflow: some deals lose money!</li>
-        <li><b>Events:</b> 🛍️ personal spending, 👶 new baby, 💛 charity (donate 10% to roll 2 dice for 3 turns), 📨 buyer offers for your property, 📉 layoffs, 📰 economic news that hits everyone.</li>
+        <li><b>Events:</b> 🛍️ personal spending, 👶 new baby, 💛 charity (donate 10% to roll 2 dice for 3 turns), 📨 buyer offers for your property, 📉 downsizing (usually a furlough, sometimes a real layoff), 📰 economic news that hits everyone.</li>
         <li><b>Manage money</b> (after rolling): sell stocks or property (quick sales take a 20% hit), pay off debts to cut expenses, or take a bank loan in $1,000 steps.</li>
         <li><b>Deals get shared:</b> pass on a deal and the next player can grab it. Stocks are open to everyone at the same price after someone buys.</li>
         <li><b>📈 Market:</b> prices drift every round and swing with news. Growth stocks pay no dividends, so sell them high. Dividend funds pay you to hold.</li>

@@ -12,7 +12,7 @@ f.onload=()=>{const w=f.contentWindow,d=f.contentDocument;
  },500);
  function step(){
   if(clicks>=Number(new URLSearchParams(location.search).get('n')||24)){ finish(); return; }
-  const t=d.getElementById('turn'); let b=t.querySelector('[data-act="ROLL"]')||t.querySelector('[data-act="DEAL"][data-size="small"]')||t.querySelector('[data-act="BUY"]:not([disabled])')||t.querySelector('[data-act="CHARITY"]:not([disabled])')||t.querySelector('[data-act="PASS"]')||t.querySelector('[data-act="END_TURN"]');
+  const t=d.body; let b=t.querySelector('[data-act="ROLL"]')||t.querySelector('[data-act="DEAL"][data-size="small"]')||t.querySelector('[data-act="BUY"]:not([disabled])')||t.querySelector('[data-act="CHARITY"]:not([disabled])')||t.querySelector('[data-act="PASS"]')||t.querySelector('[data-act="END_TURN"]');
   if(clicks===1){ const dr=t.querySelectorAll('[data-act="PICK_DREAM"]'); if(dr.length) dr[dr.length-1].click(); const k=d.querySelector('#me [data-act="SET_401K"][data-rate="0.06"]:not([disabled])'); if(k) k.click(); }
   if(clicks===6){ d.querySelector('[data-act="coach"]').click(); const c=d.getElementById('chatCash'); window.__chat=!!c; if(c){ c.click(); setTimeout(()=>{ window.__bp=!!w.botpress; },6000);} setTimeout(()=>d.getElementById('coachDialog').open&&d.getElementById('coachDialog').close(),300); }
   if(b){ b.click(); clicks++; }

@@ -36,6 +36,7 @@ A multiplayer, browser-based remake of Freeman Talla's CashFlow game. Each playe
   - **Ask Cash 💬**: a built-in coach that reads your statement and suggests your next best moves. Plus a Botpress AI chat with Cash (see [botpress/](botpress/)).
 - **Saved games:** every move autosaves. The last 8 games are listed on the home screen, and online games resume with the same room code (friends rejoin by name). Download or load save files to switch devices.
 - **Online turn timer:** the host can set 60s, 90s or 3 minutes. Disconnected players get auto-skipped.
+- **Calm layout:** cards appear in the middle of the board, and the main buttons live in a bar pinned to the bottom of the screen. Details (credit, 401(k), market, Fast Track, older feed) fold away until you tap them.
 - **Sound effects** synthesized in the browser (with a mute toggle), plus token-hop animation.
 
 ## Files
@@ -73,4 +74,4 @@ The game then uses the newest table for the current year automatically. If valid
 python3 -m http.server 8000   # then open http://localhost:8000
 ```
 
-Not financial advice. It's a game 💅
+Created by Freeman T. Not financial advice. It's a game 💅

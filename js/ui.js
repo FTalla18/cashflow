@@ -15,6 +15,12 @@ function creditHTML(p, big = false) {
     <div class="credit__bar"><i style="left:${pos.toFixed(1)}%"></i></div>
     <div class="credit__meta"><span>Card use ${Math.round(u * 100)}% of ${money(p.credit.limit)}</span><span>✅ ${p.credit.onTime} on-time</span><span>${p.credit.late ? `⚠️ ${p.credit.late} missed` : "0 missed"}</span>${big ? `<span>Loan rates: ${t.mortgage === 0 ? "standard" : `${t.mortgage > 0 ? "+" : ""}${(t.mortgage * 100).toFixed(2)}% mortgages, ${t.personal > 0 ? "+" : ""}${(t.personal * 100).toFixed(0)}% bank loans`}</span>` : ""}</div></div>`;
 }
+const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+/** A section that folds into one line; remembers open/closed per section. */
+function fold(id, summary, body, open = false) {
+  return `<details class="fold" data-fold="${id}" ${store.get(`cf.fold.${id}`, open) ? "open" : ""}><summary>${summary}<span class="fold__chev" aria-hidden="true">▾</span></summary><div class="fold__body">${body}</div></details>`;
+}
+document.addEventListener("toggle", (e) => { const d = e.target; if (d.dataset && d.dataset.fold) store.set(`cf.fold.${d.dataset.fold}`, d.open); }, true);
 const badgeIcons = (p) => p.badges.map((b) => `<span title="${esc(BADGES[b].label)}">${BADGES[b].emoji}</span>`).join("");
 
 /** app = { game, mode, localIds:Set, viewerId, online:Set|null, code, timeLeft:()=>seconds|null } */
@@ -24,7 +30,8 @@ export function renderGame(app) {
   renderBoard(g);
   renderFast(g);
   renderTicker(app);
-  renderTurn(app);
+  renderStage(app);
+  renderDock(app);
   renderMe(app);
   renderPlayers(app);
   renderLog(g);
@@ -71,11 +78,11 @@ function renderFast(g) {
   el.hidden = false;
   const cur = current(g);
   const anyone = g.players.some((p) => p.fast);
-  el.innerHTML = `<div class="row" style="justify-content:space-between"><h3 style="margin:0">🚀 Fast Track</h3><span class="muted" style="font-size:.8rem">${anyone ? "Buy your dream or add " + money(FAST_WIN_CASHFLOW) + "/mo to win" : "Escape the rat race to get here"}</span></div>
+  el.innerHTML = fold("fast", `<h3>🚀 Fast Track</h3><span class="muted fold__hint">${anyone ? "Buy your dream or add " + money(FAST_WIN_CASHFLOW) + "/mo to win" : "Escape the rat race to get here"}</span>`, `
     <div class="fastboard ${anyone ? "" : "is-locked"}">${FAST_BOARD.map((t, i) => {
       const info = tileInfo(t), here = g.players.filter((p) => p.fast && p.fast.pos === i);
       return `<div class="ftile ${cur.fast && cur.fast.pos === i ? "is-current" : ""}" style="--c:${info.color}" title="${esc(`${t}: ${info.tip}`)}"><span>${info.icon}</span>${here.map((p) => `<i class="token" style="--pc:${p.color}" title="${esc(p.name)}"></i>`).join("")}</div>`;
-    }).join("")}</div>`;
+    }).join("")}</div>`, anyone);
 }
 
 /** Stock ticker with sparklines. */
@@ -96,11 +103,9 @@ function renderTicker(app) {
     const own = me.stocks.find((s) => s.ticker === t);
     return `<div class="tick ${g.card && g.card.ticker === t ? "is-live" : ""}"><span class="tick__name">${esc(t)}${m.fund ? ` <small class="muted">fund</small>` : ""}${own ? ` <small class="pos">· you: ${own.shares}</small>` : ""}</span>${sparkline(m.hist)}<b>${money(m.price)}</b><small class="${cls(ch)}">${ch >= 0 ? "▲" : "▼"} ${Math.abs(ch * 100).toFixed(1)}%</small></div>`;
   }).join("");
-  el.innerHTML = `<details ${store.get("cf.tickerOpen", true) ? "open" : ""} id="tickerDetails"><summary><h3 style="display:inline">📈 Market</h3> <span class="muted" style="font-size:.8rem">prices drift every round; news moves them</span></summary><div class="ticks">${rows}</div></details>`;
-  $("tickerDetails").addEventListener("toggle", (e) => store.set("cf.tickerOpen", e.target.open));
+  const live = g.card && g.market[g.card.ticker] ? ` · <b>${esc(g.card.ticker)}</b> on the table` : "";
+  el.innerHTML = fold("market", `<h3>📈 Market</h3><span class="muted fold__hint">15 tickers, 52-week ranges${live}</span>`, `<div class="ticks">${rows}</div>`);
 }
-const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
-
 export function showDice(dice) {
   const el = $("dice");
   if (!dice) { el.innerHTML = ""; return; }
@@ -109,36 +114,56 @@ export function showDice(dice) {
   showDice.t = setTimeout(() => (el.innerHTML = ""), 1400);
 }
 
-function renderTurn(app) {
-  const g = app.game, el = $("turn");
-  if (g.winner) { el.innerHTML = reportCard(g); return; }
-  const p = current(g), a = actor(g), mine = app.localIds.has(a.id);
-  const head = `<div class="turn__head" style="--pc:${p.color}"><span class="dot"></span><div><h3>${esc(p.name)}'s turn${app.localIds.has(p.id) && app.mode !== "local" ? " (you)" : ""}</h3><span class="muted">${p.fast ? "🚀 On the Fast Track" : esc(p.job.employed ? p.job.title : "Between jobs")} · ${esc(p.life.city)}, ${esc(p.life.state)}</span></div></div>`;
-  if (!mine) {
-    const off = app.online && !app.online.has(a.id);
-    el.innerHTML = head + `<p class="waiting">${g.phase === "share" ? `${esc(a.name)} is deciding whether to buy ${esc(p.name)}'s deal…` : `Waiting for ${esc(a.name)}…`} ${off ? "(offline, will be auto-skipped)" : ""}</p>`;
+/** The card in the middle of the board (like drawing a card in the original game). */
+function renderStage(app) {
+  const g = app.game, el = $("stage");
+  let html = "";
+  if (g.winner) html = reportCard(g);
+  else {
+    const p = current(g), a = actor(g), mine = app.localIds.has(a.id);
+    if (mine) {
+      if (g.phase === "share") html = shareHTML(g, a, p);
+      else if (g.phase === "choose") html = `<div class="card"><p class="card__kicker">💡 Opportunity</p><h4>Small deal or big deal?</h4>
+        <div class="choose"><button data-act="DEAL" data-size="small"><b>Small deal</b><span>Stocks, funds, starter homes, small businesses. Cheaper, smaller cashflow.</span></button>
+        <button data-act="DEAL" data-size="big"><b>Big deal</b><span>Apartment buildings, commercial property, bigger businesses. Needs serious cash.</span></button></div>
+        <p class="muted" style="margin:10px 0 0">You have ${money(p.cash)} in cash.</p></div>`;
+      else if (g.phase === "decide") html = cardHTML(g, p);
+      else if (g.phase === "roll" && g.round === 1 && !p.fast) html = `<div class="card">${dreamPicker(p)}<p class="muted" style="margin:10px 0 0;font-size:.8rem">Then hit 🎲 Roll below.</p></div>`;
+    }
+  }
+  el.innerHTML = html;
+  el.hidden = !html;
+}
+
+/** The action bar pinned to the bottom of the screen: whose turn it is + the main buttons. */
+function renderDock(app) {
+  const g = app.game, el = $("dock");
+  if (g.winner) {
+    const w = g.players.find((x) => x.id === g.winner);
+    el.innerHTML = `<div class="dock__who" style="--pc:${w.color}"><span class="dot"></span><div><b>🏆 ${esc(w.name)} wins!</b><small>Round ${g.round}</small></div></div>
+      <div class="dock__btns"><button class="btn btn--ghost" data-act="stmt" data-id="${w.id}">Statement</button><button class="btn btn--accent" data-act="home">New game</button></div>`;
     return;
   }
-
-  let body = "";
-  if (g.phase === "share") {
-    body = shareHTML(g, a, p);
+  const p = current(g), a = actor(g), mine = app.localIds.has(a.id);
+  const you = app.localIds.has(p.id) && app.mode !== "local" ? " (you)" : "";
+  const hint = {
+    roll: p.fast ? "🚀 Fast Track · roll 2 dice" : p.charityTurns ? `💛 2 dice for ${p.charityTurns} more turn${p.charityTurns > 1 ? "s" : ""}` : "Roll to move",
+    choose: "Pick a small or big deal ↑", decide: "Decide on the card ↑", share: `${esc(a.name)}: buy the shared deal? ↑`,
+    manage: "Manage your money, then end your turn",
+  }[g.phase] || "";
+  let btns = "";
+  if (!mine) {
+    const off = app.online && !app.online.has(a.id);
+    btns = `<span class="muted">Waiting for ${esc(a.name)}…${off ? " (offline)" : ""}</span>`;
   } else if (g.phase === "roll") {
-    const two = p.fast || p.charityTurns;
-    body = `<div class="actions"><button class="btn btn--accent" data-act="ROLL">🎲 Roll${two ? " 2 dice" : ""}</button></div>${!p.fast && p.charityTurns ? `<p class="muted">💛 Charity bonus: 2 dice for ${p.charityTurns} more turn${p.charityTurns > 1 ? "s" : ""}.</p>` : ""}`;
-    if (g.round === 1 && !p.fast) body += dreamPicker(p);
-  } else if (g.phase === "choose") {
-    body = `<div class="card"><p class="card__kicker">💡 Opportunity</p><h4>Small deal or big deal?</h4>
-      <div class="choose"><button data-act="DEAL" data-size="small"><b>Small deal</b><span>Stocks, funds, starter homes, small businesses. Cheaper, smaller cashflow.</span></button>
-      <button data-act="DEAL" data-size="big"><b>Big deal</b><span>Apartment buildings, commercial property, bigger businesses. Needs serious cash.</span></button></div>
-      <p class="muted" style="margin:10px 0 0">You have ${money(p.cash)} in cash.</p></div>`;
-  } else if (g.phase === "decide") {
-    body = cardHTML(g, p);
-  } else {
-    body = `<div class="actions"><button class="btn btn--ghost" data-act="stmt" data-id="${p.id}">💼 Manage money</button><button class="btn btn--accent" data-act="END_TURN">End turn →</button></div>
-      <p class="muted" style="margin:10px 0 0">Sell assets, pay off debt or take a loan before you end your turn.</p>`;
+    btns = `<button class="btn btn--accent btn--big" data-act="ROLL">🎲 Roll${p.fast || p.charityTurns ? " 2 dice" : ""}</button>`;
+  } else if (g.phase === "manage") {
+    btns = `<button class="btn btn--ghost" data-act="stmt" data-id="${p.id}">💼 Manage money</button><button class="btn btn--accent btn--big" data-act="END_TURN">End turn →</button>`;
+  } else if (g.phase === "decide" || g.phase === "choose") {
+    btns = `<button class="btn btn--ghost" data-act="stmt" data-id="${p.id}">💼 Manage money</button>`;
   }
-  el.innerHTML = head + body;
+  el.innerHTML = `<div class="dock__who" style="--pc:${p.color}"><span class="dot"></span><div><b>${esc(p.name)}'s turn${you}</b><small>${hint}</small></div></div>
+    <div class="dock__btns">${btns}<button class="btn btn--pink btn--icon" data-act="coach" title="Ask Cash" aria-label="Ask Cash">💬</button></div>`;
 }
 
 function dreamPicker(p) {
@@ -155,6 +180,13 @@ function shareHTML(g, a, from) {
   return cardHTML(g, a, c, intro);
 }
 
+/** Where a price sits in its 52-week range, with a plain-English read. */
+function rangeBar(price, [lo, hi]) {
+  const pos = hi > lo ? (price - lo) / (hi - lo) : 0.5;
+  const read = pos <= 0.25 ? `<span class="pos">near the 52-week low 🔥</span>` : pos >= 0.75 ? `<span class="neg">near the 52-week high ⚠️</span>` : `<span class="muted">mid-range</span>`;
+  return `<span class="rbar"><i style="left:${(pos * 100).toFixed(0)}%"></i></span> ${read}`;
+}
+
 function cardHTML(g, p, c = g.card, intro = "") {
   if (!c) return "";
   if (c.type === "stock") {
@@ -162,8 +194,9 @@ function cardHTML(g, p, c = g.card, intro = "") {
     const max = Math.floor(p.cash / c.price);
     const div = c.price * c.yield;
     const hist = g.market[c.ticker] ? g.market[c.ticker].hist : [c.price];
+    const rg = c.range || [Math.min(...hist), Math.max(...hist)];
     return `<div class="card">${intro}<p class="card__kicker">${c.fund ? "📊 Fund" : "📈 Stock"}</p><h4>${esc(c.ticker)} ${sparkline(hist, 90, 26)}</h4><p class="story">"${esc(c.story)}"</p>
-      <dl class="kv"><dt>Price per share</dt><dd>${money(c.price)}</dd><dt>Recent range</dt><dd>${money(Math.min(...hist))} – ${money(Math.max(...hist))}</dd>
+      <dl class="kv"><dt>Price per share</dt><dd>${money(c.price)}</dd><dt>52-week range</dt><dd>${money(rg[0])} – ${money(rg[1])}</dd><dt>Where it trades</dt><dd>${rangeBar(c.price, rg)}</dd>
       <dt>Dividend</dt><dd>${c.yield ? `${(c.yield * 100).toFixed(1)}% (${money(div, true)}/share/yr)` : "none"}</dd>${own ? `<dt>You own</dt><dd>${own.shares} shares @ ${money(own.cost, true)} avg</dd>` : ""}</dl>
       <div class="qty"><input class="inp" type="number" min="1" max="${Math.max(1, max)}" value="${Math.max(1, Math.min(max, 100))}" id="qty" aria-label="Number of shares" /><span class="muted">shares · max ${max.toLocaleString()} with your cash</span></div>
       <div class="actions"><button class="btn btn--accent" data-act="BUY" ${max < 1 ? "disabled" : ""}>Buy</button>${own && !intro ? `<button class="btn btn--pink" data-act="SELL_STOCK" data-ticker="${esc(c.ticker)}">Sell shares @ ${money(c.price)}</button>` : ""}<button class="btn btn--ghost" data-act="PASS">Pass</button></div></div>`;
@@ -242,11 +275,14 @@ function renderMe(app) {
       <div class="row" style="justify-content:space-between;font-size:.82rem;margin-top:6px"><span class="muted">Or add ${money(FAST_WIN_CASHFLOW)}/mo in businesses</span><span>${money(p.fast.added)}/mo</span></div></div>` :
     `<div class="row" style="justify-content:space-between;font-size:.86rem;margin-bottom:6px"><span>🐀 Rat race escape</span><span><b class="pos">${money(s.passive)}</b> / ${money(s.target)} passive per check</span></div>
     <div class="progress"><span style="width:${pct(s.progress)}"></span></div>
-    <p class="muted" style="font-size:.78rem;margin:6px 0 0">✨ Dream: ${p.dream.icon} ${esc(p.dream.name)} (${money(p.dream.cost)})</p>`;
-  $("me").innerHTML = `<div class="me__top"><h3 style="margin:0">${app.mode === "local" ? `${esc(p.name)}'s money` : "Your money"} <span class="badges">${badgeIcons(p)}</span></h3><button class="btn btn--ghost btn--sm" data-act="stmt" data-id="${p.id}">Full statement</button></div>
-    <p class="muted" style="margin:4px 0 0"><span class="me__job">${esc(p.job.employed ? p.job.title : `Between jobs (was ${p.job.title})`)}</span> · ${esc(p.life.city)}, ${esc(p.life.state)}</p>
+`;
+  const sc = p.credit ? creditScore(p) : null;
+  const more = `${p.fast ? "" : creditHTML(p)}${k401}${p.fast ? "" : `<p class="muted" style="font-size:.8rem;margin:10px 0 0">✨ Dream: ${p.dream.icon} ${esc(p.dream.name)} (${money(p.dream.cost)})</p>`}`;
+  $("me").innerHTML = `<div class="me__top"><h3 style="margin:0">${app.mode === "local" ? `${esc(p.name)}'s money` : "Your money"} <span class="badges">${badgeIcons(p)}</span></h3><button class="btn btn--ghost btn--sm" data-act="stmt" data-id="${p.id}">Statement</button></div>
+    <p class="muted" style="margin:4px 0 0;font-size:.84rem"><span class="me__job">${esc(p.job.employed ? p.job.title : `Between jobs (was ${p.job.title})`)}</span> · ${esc(p.life.city)}, ${esc(p.life.state)}</p>
     <div class="stats"><div class="stat"><small>Cash</small><b>${money(p.cash)}</b></div><div class="stat"><small>Payday</small><b class="${cls(s.netPay)}">${money(s.netPay)}</b></div><div class="stat"><small>Net worth</small><b class="${cls(s.netWorth)}">${money(s.netWorth)}</b></div></div>
-    ${fast}${p.fast ? "" : creditHTML(p)}${k401}`;
+    ${fast}
+    ${fold("me-more", `<span>More</span><span class="muted fold__hint">${sc ? `💳 ${sc}` : ""}${k401 ? ` · 🏦 401(k) ${Math.round(p.k401Rate * 100)}%` : ""} · ${p.dream.icon} dream</span>`, more)}`;
 }
 
 function renderPlayers(app) {
@@ -263,7 +299,9 @@ function renderPlayers(app) {
 function renderLog(g) {
   const el = $("log");
   const color = Object.fromEntries(g.players.map((p) => [p.id, p.color]));
-  el.innerHTML = `<h3>Feed</h3>` + g.log.slice(-60).reverse().map((l) => `<p class="${l.kind}" style="${l.pid ? `--pc:${color[l.pid]}` : ""}">${esc(l.text)}</p>`).join("");
+  const line = (l) => `<p class="${l.kind}" style="${l.pid ? `--pc:${color[l.pid]}` : ""}">${esc(l.text)}</p>`;
+  const all = g.log.slice(-60).reverse();
+  el.innerHTML = `<h3>Feed</h3>${all.slice(0, 4).map(line).join("")}${all.length > 4 ? fold("feed", `<span class="muted">Show ${all.length - 4} earlier</span>`, all.slice(4).map(line).join("")) : ""}`;
 }
 
 /** Full financial statement (dialog). canManage = it's this player's turn on this device and they've rolled. */
