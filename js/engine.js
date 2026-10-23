@@ -294,6 +294,14 @@ export function creditScore(p) {
   if (!p.credit) return 680;
   return clamp(Math.round(p.credit.base + utilPoints(utilization(p))), 300, 850);
 }
+// The hidden base never sinks below the point where the worst card utilization lands exactly on 300,
+// so every good move (paying cards down, on-time months) shows up on the score right away.
+const CREDIT_BASE_FLOOR = 355;
+/** Points a missed payment costs: big drops from a high score, smaller ones near the bottom (like real scoring). */
+export const missedPenalty = (score) => clamp(Math.round((score - 300) * 0.12) + 8, 8, 45);
+/** Points an on-time month adds: rebuilding is faster when you're starting low. Secured cards add a little more. */
+export const onTimeGain = (p) => { const sc = creditScore(p); return 4 + (sc < 700 ? Math.round((700 - sc) / 25) : 0) + (p.credit && p.credit.secured ? 3 : 0); };
+export const SECURED_DEPOSIT = 500;
 export function creditTier(score) { return CREDIT_TIERS.find((t) => score >= t.min); }
 
 /** The loan a specific player would get on a property/business card (rate depends on their credit). */
@@ -308,7 +316,7 @@ export function loanTerms(p, card) {
 function creditChange(state, p, delta, why) {
   if (!p.credit) return;
   const before = creditScore(p);
-  p.credit.base = clamp(p.credit.base + delta, 250, 870);
+  p.credit.base = clamp(p.credit.base + delta, CREDIT_BASE_FLOOR, 870);
   const after = creditScore(p);
   if (why && after !== before) log(state, `${after > before ? "📈" : "📉"} ${p.name}'s credit score ${after > before ? "rose" : "fell"} to ${after} (${why}).`, after > before ? "credit" : "warn", p.id, "credit");
   if (after >= 800) badge(state, p, "credit_star");
@@ -369,6 +377,7 @@ export function statement(p, goal = 1) {
     { label: "Cash", value: p.cash },
     { label: "401(k) / retirement", value: p.retirement },
     ...(p.hsaBalance ? [{ label: "HSA", value: p.hsaBalance }] : []),
+    ...(p.credit && p.credit.deposit ? [{ label: "Secured card deposit", value: p.credit.deposit }] : []),
     ...(p.life.home ? [{ label: "Home", value: p.life.home.price }] : []),
     ...p.stocks.map((st) => ({ label: `${st.ticker} × ${st.shares}`, value: st.shares * st.price })),
     ...p.properties.map((a) => ({ label: a.name, value: a.value })),
@@ -417,14 +426,15 @@ function badge(state, p, id) {
   narrate(state, "badge", { name: p.name, badge: `${BADGES[id].emoji} ${BADGES[id].label}` }, p.id);
 }
 
-function payCash(state, p, amount, reason) {
+function payCash(state, p, amount, reason, bill = false) {
   p.cash = r2(p.cash - amount);
   if (p.cash < 0) {
     // Automatic bank loan in $1,000 steps to cover the shortfall (classic CashFlow rule).
     const need = Math.ceil(-p.cash / 1000) * 1000;
     borrow(state, p, need, true);
     log(state, `${p.name} was short for ${reason}, so the bank lent ${money(need)} automatically.`, "warn", p.id);
-    if (p.credit && !p.fast) { p.credit.late += 1; p.credit.missed = true; creditChange(state, p, -30, "missed payment"); tip(state, p, "credit_late"); }
+    // Only a bill you couldn't pay is a missed payment. Borrowing for a doodad hurts your wallet, not your history.
+    if (bill && p.credit && !p.fast) { p.credit.late += 1; p.credit.missed = true; creditChange(state, p, -missedPenalty(creditScore(p)), "missed payment"); tip(state, p, "credit_late"); }
   }
 }
 
@@ -760,12 +770,25 @@ function newMonth(state, rng, p) {
   if (s.passive) p.cash = r2(p.cash + s.passive);
   if (p.tax) p.tax.passive = r2(p.tax.passive + s.monthlyIn.reduce((t, x) => t + Math.max(0, x.amount) * x.taxable, 0));
   if (p.credit) p.credit.missed = false;
-  if (s.billsTotal > 0) payCash(state, p, s.billsTotal, `${name} bills`);
-  log(state, `🧾 ${name} 1st: ${p.name} paid ${money(s.billsTotal)} in monthly bills${s.passive ? ` and collected ${money(s.passive)} from assets` : ""}.`, s.monthlyCashflow < 0 ? "warn" : "info", p.id, "bills");
+  if (s.billsTotal > 0) payCash(state, p, s.billsTotal, `${name} bills`, true);
+  // credit: an on-time month builds history; shrinking balances help too
+  let creditNote = "";
+  if (p.credit && !p.fast) {
+    const debt = Object.values(p.debts).reduce((t, d) => t + d.balance, 0);
+    if (!p.credit.missed) {
+      const before = creditScore(p);
+      p.credit.onTime += 1;
+      creditChange(state, p, onTimeGain(p) + (p.credit.lastDebt !== undefined && debt < p.credit.lastDebt - 1 ? 2 : 0), null);
+      if (p.credit.secured) p.credit.securedMonths = (p.credit.securedMonths || 0) + 1;
+      const gained = creditScore(p) - before;
+      if (gained > 0) creditNote = ` ✅ On time: credit +${gained} → ${creditScore(p)}.`;
+    }
+    p.credit.lastDebt = debt;
+  }
+  log(state, `🧾 ${name} 1st: ${p.name} paid ${money(s.billsTotal)} in monthly bills${s.passive ? ` and collected ${money(s.passive)} from assets` : ""}.${creditNote}`, s.monthlyCashflow < 0 ? "warn" : "info", p.id, "bills");
   if (s.monthlyCashflow < 0) tip(state, p, "negative_paycheck");
   tip(state, p, "bills");
   if (p.credit) {
-    if (!p.credit.missed) { p.credit.onTime += 1; creditChange(state, p, 4, null); }
     // the bureaus get a new report once a month (scores wiggle a few points with your card balance)
     p.credit.hist.push(clamp(creditScore(p) + rng.int(-3, 3), 300, 850));
     if (p.credit.hist.length > 12) p.credit.hist.shift();
@@ -797,7 +820,7 @@ function settleTax(state, p) {
     tip(state, p, "tax_refund");
   } else {
     narrate(state, "tax_bill", { name: p.name, amt: money(-amount), year }, p.id);
-    payCash(state, p, -amount, `${year} taxes`);
+    payCash(state, p, -amount, `${year} taxes`, true);
     tip(state, p, "tax_bill");
   }
 }
@@ -870,6 +893,7 @@ export function apply(prev, action) {
   for (const q of state.players) { if (q.fast && q.fast.pos >= FAST_TILES) q.fast.pos %= FAST_TILES; }
   if (state.length === "classic") state.length = "standard";
   for (const q of state.players) { if (q.checks === undefined) { q.checks = 0; q.month = 0; } if (!q.tax) q.tax = { year: state.taxYear, w: 0.08, withheld: 0, owed: 0, passive: 0, checks: 0, pending: null }; }
+  for (const q of state.players) if (q.credit && q.credit.base < CREDIT_BASE_FLOOR) q.credit.base = CREDIT_BASE_FLOOR;
   for (const q of state.players) if (!q.credit) q.credit = { base: 680, limit: 5000, hist: [680], onTime: 0, late: 0 };
   const rng = Rng.from(state.rng);
   const p = current(state);
@@ -900,6 +924,18 @@ export function apply(prev, action) {
       if (p.fast) throw new GameError("You're already chasing your dream on the Fast Track!");
       p.dream = d;
       log(state, `${p.name}'s dream: ${d.icon} ${d.name} (${money(d.cost)}).`, "info", p.id);
+      break;
+    }
+
+    case "OPEN_SECURED": {
+      if (!p.credit || p.fast) throw new GameError("No need for that on the Fast Track.");
+      if (p.credit.secured) throw new GameError("You already have a secured card.");
+      if (creditScore(p) >= 640) throw new GameError("Secured cards are for rebuilding credit (scores under 640).");
+      if (p.cash < SECURED_DEPOSIT) throw new GameError(`You need ${money(SECURED_DEPOSIT)} in cash for the deposit.`);
+      p.cash = r2(p.cash - SECURED_DEPOSIT);
+      p.credit.secured = true; p.credit.deposit = SECURED_DEPOSIT; p.credit.limit += SECURED_DEPOSIT;
+      log(state, `💳 ${p.name} opened a secured credit card with a ${money(SECURED_DEPOSIT)} deposit. More available credit lowers utilization, and every on-time month now builds credit a little faster.`, "credit", p.id, "credit");
+      tip(state, p, "secured");
       break;
     }
 

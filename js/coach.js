@@ -2,7 +2,7 @@
 // next best moves (instant, offline, deterministic). If a Botpress bot is configured in
 // coach-config.js, a "Chat with Cash" button opens it for free-form questions.
 import { COACH } from "./coach-config.js";
-import { statement, actor, money, creditScore, creditTier, utilization, playerDate, MONTHS, DREAMS, dreamPrice } from "./engine.js";
+import { statement, actor, money, creditScore, creditTier, utilization, onTimeGain, playerDate, MONTHS, DREAMS, dreamPrice } from "./engine.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -39,6 +39,7 @@ export function advice(g, p) {
   else if (debts.length && debts[0].rate >= 0.15) out.push(`💳 Your ${debts[0].label.toLowerCase()} balance charges ${(debts[0].rate * 100).toFixed(0)}%. Save up ${money(debts[0].balance)} to wipe it out. It's the highest-interest debt you have.`);
   const sc = creditScore(p), tier = creditTier(sc), u = utilization(p);
   if (u >= 0.3 && p.debts.credit) out.push(`💳 Your credit score is ${sc} (${tier.label}) and your cards are ${Math.round(u * 100)}% maxed. Paying off the ${money(p.debts.credit.balance)} card balance drops utilization to 0% and can jump your score fast, which means cheaper mortgages.`);
+  else if (sc < 580) out.push(`💳 Credit ${sc} is rough, but you can come back: every on-time month adds about ${onTimeGain(p)} points right now. Keep a cushion before the 1st, pay cards under 30%, and ${p.credit.secured ? "keep using your secured card" : "consider a secured card (💳 Credit panel)"}.`);
   else if (sc < 670) out.push(`💳 Your credit score is ${sc} (${tier.label}), so every loan costs you extra (+${(tier.mortgage * 100).toFixed(1)}% on mortgages). Avoid missed payments: keep enough cash so bills never trigger an emergency loan.`);
   else if (p.credit && p.credit.late) out.push(`💳 Credit ${sc}. You've had ${p.credit.late} missed payment${p.credit.late > 1 ? "s" : ""}. Every month of on-time bills slowly rebuilds it.`);
   if (p.job.employed && p.job.match && p.k401Rate < 0.06) out.push(`🏦 Your employer matches 50% of your 401(k) up to 6% of pay, and you're at ${Math.round(p.k401Rate * 100)}%. Bumping to 6% is free money for retirement (it doesn't count toward escaping, though).`);

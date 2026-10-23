@@ -1,6 +1,6 @@
 // Rendering: turns the game state into HTML. All buttons carry data-act="..." and are handled in main.js.
 // Layout: race strip (top) · side rail + slide-over panes (left) · board with the card stage (center) · action dock (bottom).
-import { statement, tileInfo, current, actor, money, report, creditScore, creditTier, loanTerms, utilization, playerDate, checksToBills, MONTHS, monthOf,
+import { statement, tileInfo, current, actor, money, report, creditScore, creditTier, loanTerms, utilization, missedPenalty, onTimeGain, SECURED_DEPOSIT, playerDate, checksToBills, MONTHS, monthOf,
   TILES, FAST_TILES, LENGTHS, K401_CHOICES, FAST_WIN_CASHFLOW, FAVORITE_DISCOUNT, DREAMS, FAST_BOARD, BADGES, dreamAt, dreamPrice } from "./engine.js";
 import { FILING_LABEL } from "./tax.js";
 
@@ -292,13 +292,23 @@ function creditHTML(p, big = false) {
 }
 
 function renderCredit(app) {
-  const p = viewer(app);
+  const g = app.game, p = viewer(app), sc = creditScore(p), u = utilization(p);
+  const mine = app.localIds.has(p.id) && actor(g).id === p.id && g.phase !== "share" && !g.winner && !p.fast;
+  const canSecure = p.credit && !p.credit.secured && sc < 640;
   $("credit").innerHTML = `<h3>💳 Credit score</h3>${creditHTML(p, true)}
-    <ul class="howto"><li><b>Bills paid on time</b> every month: +4 (payment history is ~35% of a real FICO score)</li>
-    <li><b>Running out of cash</b> = a missed payment: −30</li>
-    <li><b>Card balance</b> under 10% of your limit helps, over 30% hurts (pay it down in your statement)</li>
-    <li><b>New bank loan</b> = hard inquiry: −6</li>
-    <li>Better tiers get cheaper mortgages and loans. Every deal card shows <b>your</b> rate.</li></ul>`;
+    ${p.fast ? "" : `<div class="timeline">
+      <div><span>✅ Next on-time month</span><b class="pos">+${onTimeGain(p)}${sc < 700 ? " (faster when you're rebuilding)" : ""}</b></div>
+      <div><span>⚠️ A missed bill at your score</span><b class="neg">−${missedPenalty(sc)}</b></div>
+      ${p.debts.credit ? `<div><span>💳 Card balance to get under 30%</span><b>${u > 0.3 ? `pay ${money(Math.ceil(p.debts.credit.balance - p.credit.limit * 0.3))}` : "you're there ✅"}</b></div>` : ""}</div>`}
+    <h4 style="margin:14px 0 6px">${sc < 640 ? "🔧 Your comeback plan" : "How it works"}</h4>
+    <ul class="howto"><li><b>Pay every bill on the 1st</b>: keep enough cash before the 1st (Money panel shows when bills hit). Each on-time month adds points, more when your score is low.</li>
+    <li><b>Only bills count as missed payments.</b> Borrowing for a doodad hurts your wallet, not your credit history.</li>
+    <li><b>Pay card balances down</b> (Statement → Liabilities). Under 30% of your limit helps right away, under 10% is elite.</li>
+    <li><b>Shrinking debt</b> month over month adds a little extra.</li>
+    <li><b>Avoid new bank loans</b> while rebuilding: each is a hard inquiry (−6).</li>
+    <li><b>Secured card:</b> put down a ${money(SECURED_DEPOSIT)} deposit. It raises your credit limit (lower utilization) and adds +3 to every on-time month.</li></ul>
+    ${p.credit && p.credit.secured ? `<p class="pos" style="font-size:.84rem;margin:10px 0 0">💳 Secured card open${p.credit.securedMonths ? ` · ${p.credit.securedMonths} on-time month${p.credit.securedMonths > 1 ? "s" : ""}` : ""}. Keep it up!</p>`
+      : canSecure ? `<div class="actions"><button class="btn btn--accent" data-act="OPEN_SECURED" ${mine && p.cash >= SECURED_DEPOSIT ? "" : "disabled"}>Open a secured card (${money(SECURED_DEPOSIT)} deposit)</button></div>${mine ? "" : `<p class="muted" style="font-size:.76rem;margin:6px 0 0">Available on your turn.</p>`}` : ""}`;
 }
 
 function renderTicker(app) {

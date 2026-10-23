@@ -51,17 +51,19 @@
 
 ## Credit score (300–850, like FICO)
 - Every player starts with a score based on their life (most between 560 and 790).
-- **Payment history:** each paycheck where all bills get paid without emergency borrowing adds +2. Running out of cash (the bank's automatic loan) counts as a **missed payment: −30**.
-- **Credit utilization:** credit card balance ÷ credit limit, checked live. Under 10%: +20 · under 30%: +5 · 30–50%: −15 · 50–80%: −35 · over 80%: −55. Paying off the card entirely drops utilization to 0%.
-- **Hard inquiries:** taking a bank loan costs −6. Paying off any other debt in full: +6. Paying off a bank loan: +5.
+- **Payment history:** each month where all bills on the 1st get paid adds points. The lower your score, the faster you rebuild: about +4 per month at 700+, up to about +20 per month near 300 (+3 more with a secured card). Shrinking your total debt month over month adds +2.
+- **Missed payment:** only a BILL you can't cover counts (monthly bills or a tax bill). Borrowing to cover a doodad or a furlough hurts your wallet, not your credit history. The penalty is bigger from a high score (up to −45) and smaller near the bottom (−8 at 300).
+- **Credit utilization:** credit card balance ÷ credit limit, checked live. Under 10%: +20 · under 30%: +5 · 30–50%: −15 · 50–80%: −35 · over 80%: −55. Paying the card down moves the score immediately, even at 300.
+- **Hard inquiries:** taking a bank loan costs −6. Paying off a debt in full: +5 or +6.
+- **Secured credit card (comeback tool):** players under 640 can open one in the 💳 Credit panel with a $500 deposit. It raises their credit limit (lower utilization) and adds +3 to every on-time month.
+- **Coming back from 300 is possible:** pay the card under 30%, open a secured card, and pay bills on time. A perfect year takes a 300 score to the mid-500s (Fair is 580+). Real life works the same way: missed payments fade as new on-time history stacks up.
 - **Tiers and what they do:**
   - Exceptional 800+: mortgages −0.5%, bank loans −4%, 25% higher bank loan limit (🌟 badge)
   - Very good 740–799: mortgages −0.25%, bank loans −2%, 10% higher limit
   - Good 670–739: standard rates
   - Fair 580–669: mortgages +1%, bank loans +5%, limit cut 25%
   - Poor below 580: mortgages +2.5%, bank loans +10%, limit cut in half
-- Business loans move by half the bank-loan adjustment. Every deal card shows YOUR rate, payment and cashflow based on your score, so the same deal can be great for one player and negative for another.
-- Real life: payment history is ~35% of a FICO score, utilization ~30%, length of history ~15%, new credit ~10%, credit mix ~10%. A missed payment stays on your report for 7 years. On a $300k mortgage, 1% higher rate ≈ $200/month more.
+- Every deal card shows YOUR rate, payment and cashflow based on your score.
 
 ## The Fast Track ring
 - 40 tiles around the square board. Fast Track players roll 2 dice (3 after donating on the Foundation tile).

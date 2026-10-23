@@ -381,6 +381,37 @@ function simulate(seed, nPlayers, maxRounds = 300, length = "standard") {
   ok("buying any dream on the Fast Track ends the game", g.winner === "1" && g.log.some((l) => l.key === "dream_win"), `winner ${g.winner} after ${guard} actions, ${dreamLandings} dream landings`);
 }
 
+// ---------- 14. Coming back from a 300 credit score
+{
+  let g = newGame({ seed: "comeback", players: [{ id: 1, name: "A" }] });
+  const p = g.players[0];
+  p.credit.base = 100; // way below the floor (old saves could get here)
+  p.debts.credit = { label: "Credit cards", balance: p.credit.limit * 0.95, monthly: 200, rate: 0.24 };
+  p.cash = 80000;
+  g = apply(g, { type: "ROLL", by: "1" });
+  while (g.phase !== "manage" && g.phase !== "over") g = apply(g, { type: "PASS", by: actor(g).id });
+  const start = creditScore(g.players[0]);
+  ok("score starts at the 300 floor", start === 300, `${start}`);
+  g = apply(g, { type: "PAY_DOWN", key: "credit", amount: Math.floor(g.players[0].debts.credit.balance * 0.8), by: "1" });
+  const afterPay = creditScore(g.players[0]);
+  ok("paying the card down moves a 300 score right away", afterPay > start + 30, `${start} → ${afterPay}`);
+  g = apply(g, { type: "OPEN_SECURED", by: "1" });
+  ok("secured card opens with a deposit", g.players[0].credit.secured && g.players[0].credit.deposit === 500);
+  // a year of on-time bills, never buying anything
+  let guard = 0;
+  while (g.players[0].month < 12 && guard++ < 3000 && g.phase !== "over") {
+    const ph = g.phase; g = apply(g, { type: ph === "roll" ? "ROLL" : ph === "manage" ? "END_TURN" : "PASS", by: actor(g).id });
+  }
+  const yearLater = creditScore(g.players[0]);
+  ok("a year of on-time bills rebuilds a 300 score to the edge of fair (550+)", yearLater >= 550, `${afterPay} → ${yearLater} after ${g.players[0].month} months, ${g.players[0].credit.late} missed`);
+  // doodads paid with an emergency loan are not missed payments
+  let d = newGame({ seed: "doodad", players: [{ id: 1, name: "A" }] });
+  d.players[0].cash = 0;
+  const late0 = d.players[0].credit.late;
+  for (let i = 0; i < 6 && d.players[0].month === 0; i++) { const ph = d.phase; d = apply(d, { type: ph === "roll" ? "ROLL" : ph === "manage" ? "END_TURN" : "PASS", by: actor(d).id }); }
+  ok("only bills count as missed payments", d.log.filter((l) => /was short for/.test(l.text) && !/bills|taxes/.test(l.text)).length === 0 || d.players[0].credit.late === late0 + d.log.filter((l) => /was short for .*(bills|taxes)/.test(l.text)).length, `late ${d.players[0].credit.late}`);
+}
+
 // ---------- 8. Classic mode game length
 {
   const rr = [];
