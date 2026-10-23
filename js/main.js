@@ -1,6 +1,6 @@
 // App controller: lobby, local (pass-and-play) games, hosting and joining online games.
 import { newGame, apply, current, actor, GameError, MAX_PLAYERS } from "./engine.js";
-import { renderGame, renderBoard, statementHTML, showDice, renderTimer } from "./ui.js";
+import { renderGame, renderBoard, renderEight, statementHTML, showDice, renderTimer } from "./ui.js";
 import { setTaxTables, bestTaxYear } from "./tax.js";
 import { initCoach, openCoach } from "./coach.js";
 import { confetti, floatMoney } from "./fx.js";
@@ -120,6 +120,17 @@ function setGame(next) {
       sfx.step();
       if (k >= steps) { clearInterval(animating); animating = null; renderBoard(app.game); setTimeout(() => playSounds(fresh.filter((l) => l.key !== "roll")), 120); }
     }, stepMs);
+  } else if (same && fresh.some((l) => l.key === "roll") && (() => { const q = prev && current(prev); const n = q && next.players.find((x) => x.id === q.id); return q && q.fast && n && n.fast && n.fast.pos !== q.fast.pos; })()) {
+    // hop along the figure 8
+    const q = current(prev), n = next.players.find((x) => x.id === q.id);
+    const from = q.fast.pos, steps = (n.fast.pos - from + 40) % 40;
+    sfx.dice(); clearInterval(animating);
+    let k = 0;
+    renderEight(next, { [q.id]: from });
+    animating = setInterval(() => {
+      k++; renderEight(app.game, { [q.id]: (from + k) % 40 }); sfx.step();
+      if (k >= steps) { clearInterval(animating); animating = null; renderEight(app.game); setTimeout(() => playSounds(fresh.filter((l) => l.key !== "roll")), 120); }
+    }, Math.min(130, 1300 / Math.max(steps, 1)));
   } else playSounds(fresh);
   if ($("stmtDialog").open && app.stmtFor) openStatement(app.stmtFor, true);
   // money floats up from the dock when your cash changes; confetti for the big moments

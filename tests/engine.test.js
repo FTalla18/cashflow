@@ -1,6 +1,6 @@
 // Engine tests: run by opening tests/index.html (results are also POSTed to /log when served by the test server).
 import { paycheckTaxes, federalIncomeTax, setTaxTables, bestTaxYear, taxYears } from "../js/tax.js";
-import { newGame, apply, statement, current, actor, report, GameError, TILES, FAST_TILES, creditScore, creditTier, loanTerms, monthOf } from "../js/engine.js";
+import { newGame, apply, statement, current, actor, report, GameError, TILES, FAST_TILES, creditScore, creditTier, loanTerms, monthOf, FAST_BOARD, DREAMS, dreamAt } from "../js/engine.js";
 import { Rng } from "../js/rng.js";
 
 const results = [];
@@ -206,12 +206,12 @@ function simulate(seed, nPlayers, maxRounds = 300, length = "standard") {
   ok("player can pick a dream from their options", apply(d, { type: "PICK_DREAM", id: pick, by: "1" }).players[0].dream.id === pick);
 
   // Fast Track: force a player to escape in classic mode
-  let f = newGame({ seed: "fast", length: "classic", players: [{ id: 1, name: "A" }, { id: 2, name: "B" }] });
+  let f = newGame({ seed: "fast", length: "standard", players: [{ id: 1, name: "A" }, { id: 2, name: "B" }] });
   const fp = f.players[0];
   fp.properties.push({ id: "x", category: "biz", propType: "Car Wash", name: "Test biz", price: 1e6, value: 1e6, down: 1e5, loan: 0, rate: 0, payment: 0, noi: 40000, cashflow: 40000 });
   f = apply(f, { type: "ROLL", by: "1" });
   const fp2 = f.players[0];
-  ok("escaping in Classic mode moves you to the Fast Track (no instant win)", fp2.fast && !f.winner, JSON.stringify(fp2.fast));
+  ok("escaping in Standard mode moves you to the Fast Track (no instant win)", fp2.fast && !f.winner, JSON.stringify(fp2.fast));
   ok("Fast Track start cash = 100x monthly passive", fp2.fast && fp2.fast.base >= 40000 * 100 * 0.99);
   let guard = 0;
   while (!f.winner && guard++ < 3000) {
@@ -223,10 +223,10 @@ function simulate(seed, nPlayers, maxRounds = 300, length = "standard") {
   ok("report card ranks the winner first", report(f)[0].winner);
 
   // standard mode still wins on escape
-  let w = newGame({ seed: "fast", length: "standard", players: [{ id: 1, name: "A" }] });
+  let w = newGame({ seed: "fast", length: "sprint", players: [{ id: 1, name: "A" }] });
   w.players[0].properties.push({ id: "x", category: "biz", propType: "Car Wash", name: "Test biz", price: 1e6, value: 1e6, down: 1e5, loan: 0, rate: 0, payment: 0, noi: 40000, cashflow: 40000 });
   w = apply(w, { type: "ROLL", by: "1" });
-  ok("Standard mode: escaping wins immediately", w.winner === "1");
+  ok("Sprint mode: escaping wins immediately", w.winner === "1");
 
   // tax years: a newer table loaded at runtime is picked up
   setTaxTables({ years: { 2099: { standardDeduction: { single: 1, married_joint: 1, married_separate: 1, head_household: 1 }, brackets: { single: [[1, .1], [2, .12], [3, .22], [4, .24], [5, .32], [6, .35], [null, .37]], married_joint: [[1, .1], [2, .12], [3, .22], [4, .24], [5, .32], [6, .35], [null, .37]], married_separate: [[1, .1], [2, .12], [3, .22], [4, .24], [5, .32], [6, .35], [null, .37]], head_household: [[1, .1], [2, .12], [3, .22], [4, .24], [5, .32], [6, .35], [null, .37]] }, fica: { socialSecurityRate: .062, socialSecurityWageBase: 1e6, medicareRate: .0145, additionalMedicareRate: .009, additionalMedicareThreshold: { single: 2e5, married_joint: 2.5e5, married_separate: 1.25e5, head_household: 2e5 } }, limits: { k401: 1, ira: 1, hsaSelf: 1, hsaFamily: 1 }, childTaxCredit: 0 }, 2098: { broken: true } } });
@@ -358,13 +358,36 @@ function simulate(seed, nPlayers, maxRounds = 300, length = "standard") {
   ok("quick sale = 10% below market", Math.abs(g.players[0].cash - cash0 - 10 * Math.max(1, Math.round(mkt * 0.9))) < 0.01, `market ${mkt}`);
 }
 
+// ---------- 13. The figure-8 Fast Track
+{
+  const dreamTiles = FAST_BOARD.map(dreamAt).filter(Boolean);
+  ok("Fast Track has 40 tiles and at least 20 different dreams", FAST_TILES === 40 && new Set(dreamTiles.map((d) => d.id)).size >= 20, `${FAST_TILES} tiles, ${new Set(dreamTiles.map((d) => d.id)).size} dreams`);
+  ok("every dream has a tile", DREAMS.every((d) => FAST_BOARD.includes(`Dream:${d.id}`)));
+  // one player escapes; the other stays on the square board
+  let g = newGame({ seed: "eight", players: [{ id: 1, name: "A" }, { id: 2, name: "B" }] });
+  g.players[0].properties.push({ id: "x", category: "biz", propType: "Car Wash", name: "Test biz", price: 1e6, value: 1e6, down: 1e5, loan: 0, rate: 0, payment: 0, noi: 30000, cashflow: 30000 });
+  g = apply(g, { type: "ROLL", by: "1" });
+  while (actor(g).id === "1" && g.phase !== "roll" && !g.winner) g = apply(g, { type: g.phase === "manage" ? "END_TURN" : "PASS", by: actor(g).id });
+  const bPos = () => g.players[1].pos, aFast = () => g.players[0].fast.pos;
+  let squareMoves = 0, eightMoves = 0, dreamLandings = 0, guard = 0;
+  while (!g.winner && guard++ < 400) {
+    const a = actor(g);
+    const before = a.id === "1" ? aFast() : bPos(), aSquare = g.players[0].pos;
+    if (g.phase === "roll") { g = apply(g, { type: "ROLL", by: a.id }); if (a.id === "1") { eightMoves += aFast() !== before; if (g.players[0].pos !== aSquare) throw new Error("fast player moved on the square board"); if (g.card && g.card.type === "dream") dreamLandings++; } else squareMoves += bPos() !== before; }
+    else if (g.phase === "decide" && g.card && g.card.type === "dream" && g.card.price <= a.cash) g = apply(g, { type: "BUY", by: a.id });
+    else g = apply(g, { type: g.phase === "manage" ? "END_TURN" : "PASS", by: a.id });
+  }
+  ok("fast player moves only on the figure 8, the other only on the square", eightMoves > 0 && squareMoves > 0, `${eightMoves} figure-8 moves, ${squareMoves} square moves`);
+  ok("buying any dream on the Fast Track ends the game", g.winner === "1" && g.log.some((l) => l.key === "dream_win"), `winner ${g.winner} after ${guard} actions, ${dreamLandings} dream landings`);
+}
+
 // ---------- 8. Classic mode game length
 {
   const rr = [];
   const SIMS = Math.min(80, Number(new URLSearchParams(location.search).get("sims") || 500));
-  for (let i = 0; i < SIMS; i++) { const { state } = simulate(`classic-${i}`, 2 + (i % 5), 300, "classic"); if (state.winner) rr.push(state.round); }
+  for (let i = 0; i < SIMS; i++) { const { state } = simulate(`classic-${i}`, 2 + (i % 5), 300, "sprint"); if (state.winner) rr.push(state.round); }
   rr.sort((a, b) => a - b);
-  results.push({ name: "rounds to win, classic (info)", pass: rr.length > SIMS * 0.5, detail: `${rr.length}/${SIMS} finished; 25% ${rr[Math.floor(rr.length * 0.25)]}, median ${rr[Math.floor(rr.length * 0.5)]}, 75% ${rr[Math.floor(rr.length * 0.75)]}` });
+  results.push({ name: "rounds to win, sprint (info)", pass: rr.length > SIMS * 0.5, detail: `${rr.length}/${SIMS} finished; 25% ${rr[Math.floor(rr.length * 0.25)]}, median ${rr[Math.floor(rr.length * 0.5)]}, 75% ${rr[Math.floor(rr.length * 0.75)]}` });
 }
 
 export { results };

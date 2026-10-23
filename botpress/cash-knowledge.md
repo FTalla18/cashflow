@@ -4,10 +4,9 @@
 **Rat Race Royale** (by Freeman T.) is a multiplayer board game (1–6 players, same device or online with a room code) inspired by classic rat-race board games. Each player gets a realistic life: a real job with a salary from U.S. Bureau of Labor Statistics data (May 2025), or no job at all (about 12% of characters start between jobs), plus a city, rent or a mortgage, a car loan, student loans, credit cards, maybe a spouse and kids. Taxes use the real IRS federal brackets (updated automatically every year), Social Security and Medicare (FICA), and approximate state taxes.
 
 ## How to win
-- **Quick mode:** passive income covers 60% of living expenses.
-- **Standard mode:** passive income covers 100% of living expenses ("escaping the rat race").
-- **Classic mode:** escape the rat race, then go to the **Fast Track** and win by buying your **dream** or by adding $50,000/month of new business cashflow.
-- Passive income = dividends + rental and business cashflow. Your salary does NOT count, and neither does your 401(k).
+- **Step 1: escape the rat race.** Your passive income (dividends + rental and business cashflow) covers your monthly living expenses: 100% in Standard mode, 60% in Quick mode. Your salary does NOT count, and neither does your 401(k).
+- **Step 2: the Fast Track.** Escaping moves your token from the square board onto the **Fast Track ring** of 40 tiles around it. Everyone still in the rat race keeps playing inside. The game ends when someone **lands on any of the 21 dream tiles and buys it** (or adds $50,000/month of Fast Track business cashflow).
+- **Sprint mode:** first to escape the rat race wins (no Fast Track).
 
 ## How money moves (like real life)
 - **Every paycheck (every 2 weeks, 26 a year):** each Pay Day tile you land on or pass is one paycheck. Gross pay (salary, spouse's pay, or unemployment benefits) minus what's taken out first: federal income tax withheld, Social Security + Medicare (FICA), state tax, 401(k), HSA and employer health insurance = **take-home pay**, which goes into your cash.
@@ -64,13 +63,14 @@
 - Business loans move by half the bank-loan adjustment. Every deal card shows YOUR rate, payment and cashflow based on your score, so the same deal can be great for one player and negative for another.
 - Real life: payment history is ~35% of a FICO score, utilization ~30%, length of history ~15%, new credit ~10%, credit mix ~10%. A missed payment stays on your report for 7 years. On a $300k mortgage, 1% higher rate ≈ $200/month more.
 
-## Fast Track (Classic mode)
-- When your passive income covers your expenses you leave the rat race. You start the Fast Track with cash = 100 × your monthly passive income ("Payout Day").
-- 24 tiles, 2 dice every turn. Payout Day pays 100× your monthly passive income + all Fast Track business cashflow.
-- Business tiles: buy big ventures ($100k–$2.5M, all cash) that add monthly cashflow.
-- Dream tiles: buy YOUR dream (picked in round 1 from 3 options) to win.
-- Lawsuit: lose half your cash. Tax Audit: lose 30%. Market Crash: lose 25%. (Lesson: insurance, good records, and turning cash into assets.)
-- Win: buy your dream, or add $50,000/month of business cashflow.
+## The Fast Track ring
+- 40 tiles around the square board. Fast Track players roll 2 dice (3 after donating on the Foundation tile).
+- **Payout Day** (5 tiles, gold): collect your Payout = 100× your monthly passive income at escape + all Fast Track business cashflow. You start the Fast Track with one Payout in cash.
+- **Dreams** (21 tiles, pink, $1.5M–$15M): land on one you can afford and buy it to WIN. Your favorite dream (picked in round 1) costs 20% less. Dreams include Dinner with the President ($2.5M), a private island ($4M), a cancer research lab ($6M), a private jet ($8M), a pro sports team stake ($15M), a school abroad ($1.5M) and more.
+- **Deal tiles** (blue): either a big business ($250k–$5M, all cash) that adds monthly cashflow to every Payout Day, or a **moonshot** ($100k–$1.5M): pay, then roll one die. 5 or 6 pays 5–12× the buy-in; 1–4 loses it all (1 in 3 odds).
+- **Hazards** (red): Lawsuit (lose half your cash), Tax Audit (lose 30%), Market Crash (lose 25%), Bad Partner (lose your weakest Fast Track business).
+- **Foundation:** donate 10% of a Payout to roll 3 dice for 3 turns.
+- Strategy: cash sitting around is exposed to lawsuits and audits. Businesses grow every Payout Day. Buy the first dream you can afford that you land on.
 
 ## Badges
 🌱 First asset · 🌟 Exceptional credit (800+) · 🏠 Landlord · 🏪 Business owner · 📈 Dividend earner · ✂️ Debt slayer · 🕊️ Consumer-debt free · 💛 Generous · 💪 Comeback kid (hired after a layoff) · 🧗 Halfway out · 🚀 Escaped · 💰 Sold an asset for a profit.

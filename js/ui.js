@@ -1,14 +1,14 @@
 // Rendering: turns the game state into HTML. All buttons carry data-act="..." and are handled in main.js.
 // Layout: race strip (top) · side rail + slide-over panes (left) · board with the card stage (center) · action dock (bottom).
 import { statement, tileInfo, current, actor, money, report, creditScore, creditTier, loanTerms, utilization, playerDate, checksToBills, MONTHS, monthOf,
-  TILES, LENGTHS, K401_CHOICES, FAST_WIN_CASHFLOW, DREAMS, FAST_BOARD, BADGES } from "./engine.js";
+  TILES, FAST_TILES, LENGTHS, K401_CHOICES, FAST_WIN_CASHFLOW, FAVORITE_DISCOUNT, DREAMS, FAST_BOARD, BADGES, dreamAt, dreamPrice } from "./engine.js";
 import { FILING_LABEL } from "./tax.js";
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const $ = (id) => document.getElementById(id);
 const pct = (x) => `${Math.round(x * 100)}%`;
 const cls = (n) => (n >= 0 ? "pos" : "neg");
-const short$ = (n) => (Math.abs(n) >= 1000 ? `$${(n / 1000).toFixed(Math.abs(n) >= 10000 ? 0 : 1)}k` : money(n));
+const short$ = (n) => (Math.abs(n) >= 1e6 ? `$${(n / 1e6).toFixed(Math.abs(n) >= 1e7 ? 0 : 1).replace(/\.0$/, "")}M` : Math.abs(n) >= 1000 ? `$${(n / 1000).toFixed(Math.abs(n) >= 10000 ? 0 : 1)}k` : money(n));
 const badgeIcons = (p) => p.badges.map((b) => `<span title="${esc(BADGES[b].label)}">${BADGES[b].emoji}</span>`).join("");
 const fmtDate = (d) => `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
 /** "Data Scientist · $98,400/yr" (or what they did before, if between jobs). */
@@ -50,6 +50,7 @@ export function renderGame(app) {
   renderTop(app);
   renderRace(app);
   renderBoard(app.game);
+  renderEight(app.game);
   renderStage(app);
   renderDock(app);
   renderPeek(app.game);
@@ -68,8 +69,9 @@ function renderRace(app) {
   const g = app.game, cur = current(g);
   $("race").innerHTML = g.players.map((p) => {
     const s = statement(p, g.goal);
-    const prog = p.fast ? Math.min(1, p.cash / p.dream.cost) : s.progress;
-    const label = p.fast ? `🚀 ${p.dream.icon} ${short$(p.cash)} / ${short$(p.dream.cost)}` : `${short$(s.passive)} / ${short$(s.target)} a month`;
+    const fav = p.dream ? dreamPrice(p, p.dream) : 1;
+    const prog = p.fast ? Math.min(1, p.cash / fav) : s.progress;
+    const label = p.fast ? `🚀 ${short$(p.cash)} cash · ${p.dream.icon} ${short$(fav)}` : `${short$(s.passive)} / ${short$(s.target)} a month`;
     const off = app.online && !app.online.has(p.id);
     return `<button class="racer ${p.id === cur.id ? "is-turn" : ""}" style="--pc:${p.color}" data-act="stmt" data-id="${p.id}" title="${esc(p.name)} · ${esc(jobLine(p))} · ${pct(prog)} of the way out">
       <span class="dot"></span><b>${esc(p.name)}${off ? " 💤" : ""}</b><small>${label}</small><span class="progress"><span style="width:${pct(prog)}"></span></span></button>`;
@@ -98,20 +100,9 @@ function renderPeek(g) {
 }
 
 // ---------------------------------------------------------------- board (rat race 9×9, or the Fast Track ring)
-const RING = (() => { // 24 perimeter cells of a 7×7 grid, clockwise from the top-left
-  const out = [];
-  for (let c = 0; c < 7; c++) out.push([0, c]);
-  for (let r = 1; r < 7; r++) out.push([r, 6]);
-  for (let c = 5; c >= 0; c--) out.push([6, c]);
-  for (let r = 5; r >= 1; r--) out.push([r, 0]);
-  return out;
-})();
-
 export function renderBoard(g, posOverride = null) {
   const cur = current(g);
   const board = $("board");
-  if (cur.fast && !g.winner) { renderFastBoard(g, cur); return; }
-  board.className = "board";
   const posOf = (p) => (posOverride && posOverride[p.id] !== undefined ? posOverride[p.id] : p.pos);
   let html = "";
   for (let i = 0; i < TILES; i++) {
@@ -123,20 +114,42 @@ export function renderBoard(g, posOverride = null) {
     </div>`;
   }
   board.innerHTML = html;
+  $("arena").classList.toggle("rat-active", !cur.fast && !g.winner);
 }
 
-function renderFastBoard(g, cur) {
-  const board = $("board");
-  board.className = "board board--fast";
-  board.innerHTML = FAST_BOARD.map((t, i) => {
-    const info = tileInfo(t), [r, c] = RING[i];
-    const here = g.players.filter((p) => p.fast && p.fast.pos === i);
-    return `<div class="tile ${cur.fast.pos === i ? "is-current" : ""}" style="--c:${info.color};grid-row:${r + 1};grid-column:${c + 1}" title="${esc(`${t}: ${info.tip}`)}">
-      <span class="tile__icon">${info.icon}</span><span class="tile__name">${esc(t)}</span>
-      ${here.length ? `<span class="tokens">${here.map((p) => `<i class="token ${p.id === cur.id ? "is-turn" : ""}" style="--pc:${p.color}"></i>`).join("")}</span>` : ""}</div>`;
-  }).join("") + `<div class="hub"><p class="card__kicker">🚀 The Fast Track</p><h3>${cur.dream.icon} ${esc(cur.dream.name)}</h3>
-    <p class="muted" style="margin:0">${esc(cur.name)}: ${money(cur.cash)} of ${money(cur.dream.cost)} · Payout Day ${money(cur.fast.base + cur.fast.added)}</p>
-    <div class="progress" style="width:min(320px,90%)"><span style="width:${pct(Math.min(1, cur.cash / cur.dream.cost))}"></span></div></div>`;
+// ---------------------------------------------------------------- the Fast Track: a 40-tile ring around the square board
+// An 11×11 grid has exactly 40 edge cells: the ring. The rat race board fills the 9×9 middle.
+const RING = (() => {
+  const out = [];
+  for (let c = 0; c < 11; c++) out.push([0, c]);       // top, left → right
+  for (let r = 1; r < 11; r++) out.push([r, 10]);      // right side, down
+  for (let c = 9; c >= 0; c--) out.push([10, c]);      // bottom, right → left
+  for (let r = 9; r >= 1; r--) out.push([r, 0]);       // left side, up
+  return out;
+})();
+const short$ring = short$;
+const RING_LABEL = { "Payout Day": "Payout", "Business": "Deal", "Lawsuit": "Lawsuit", "Tax Audit": "Audit", "Market Crash": "Crash", "Foundation": "Charity", "Bad Partner": "Partner" };
+
+export function renderEight(g, posOverride = null) {
+  const cur = current(g);
+  const arena = $("arena");
+  arena.classList.toggle("no-ring", !g.fastTrack);
+  if (!g.fastTrack) { $("ring").innerHTML = ""; return; }
+  const anyone = g.players.some((p) => p.fast);
+  const viewerFav = (cur.dream || {}).id;
+  const posOf = (p) => (posOverride && posOverride[p.id] !== undefined ? posOverride[p.id] : p.fast.pos);
+  $("ring").innerHTML = FAST_BOARD.map((t, i) => {
+    const info = tileInfo(t), d = info.dream, [r, c] = RING[i];
+    const corner = (r === 0 || r === 10) && (c === 0 || c === 10) ? `corner-${r ? "b" : "t"}${c ? "r" : "l"}` : "";
+    const here = g.players.filter((p) => p.fast && posOf(p) === i);
+    const isCur = cur.fast && posOf(cur) === i;
+    const kind = d ? "dream" : t === "Payout Day" ? "payout" : t === "Business" ? "deal" : "hazard";
+    return `<div class="rtile rtile--${kind} ${corner} ${isCur ? "is-current" : ""} ${d && d.id === viewerFav ? "is-fav" : ""}" style="grid-row:${r + 1};grid-column:${c + 1}" title="${esc(d ? `${d.icon} ${d.name}: ${money(d.cost)}` : `${t}: ${info.tip}`)}">
+      <span class="rtile__icon">${info.icon}</span><span class="rtile__name">${d ? short$(d.cost) : RING_LABEL[t] || t}</span>
+      ${here.length ? `<span class="tokens">${here.map((p) => `<i class="token ${p.id === cur.id ? "is-turn" : ""}" style="--pc:${p.color}" title="${esc(p.name)}"></i>`).join("")}</span>` : ""}</div>`;
+  }).join("");
+  arena.classList.toggle("ring-locked", !anyone);
+  arena.classList.toggle("ring-active", !!cur.fast && !g.winner);
 }
 
 export function showDice(dice) {
@@ -247,8 +260,9 @@ function renderMe(app) {
     : `${t.year} so far: ${money(t.withheld || 0)} withheld`;
   const escape = p.fast
     ? `<div class="fastme"><div class="row" style="justify-content:space-between"><span>💸 Payout Day pays</span><b class="pos">${money(p.fast.base + p.fast.added)}</b></div>
-      <div class="row" style="justify-content:space-between"><span>${p.dream.icon} ${esc(p.dream.name)}</span><b>${money(p.dream.cost)}</b></div>
-      <div class="progress"><span style="width:${pct(Math.min(1, p.cash / p.dream.cost))}"></span></div>
+      <div class="row" style="justify-content:space-between"><span>${p.dream.icon} Favorite: ${esc(p.dream.name)}</span><b>${money(dreamPrice(p, p.dream))}</b></div>
+      <div class="progress"><span style="width:${pct(Math.min(1, p.cash / dreamPrice(p, p.dream)))}"></span></div>
+      <div class="row" style="justify-content:space-between;font-size:.82rem"><span class="muted">Dreams you can afford right now</span><span>${DREAMS.filter((d) => dreamPrice(p, d) <= p.cash).length} of ${DREAMS.length}</span></div>
       <div class="row" style="justify-content:space-between;font-size:.82rem"><span class="muted">Or add ${money(FAST_WIN_CASHFLOW)}/mo in businesses</span><span>${money(p.fast.added)}/mo</span></div></div>`
     : `<div class="row" style="justify-content:space-between;font-size:.86rem;margin-bottom:6px"><span>🐀 Rat race escape</span><span><b class="pos">${money(s.passive)}</b> / ${money(s.target)} a month</span></div>
       <div class="progress"><span style="width:${pct(s.progress)}"></span></div>`;
@@ -264,7 +278,7 @@ function renderMe(app) {
       ${s.passive ? `<div><span>💰 Passive income</span><b class="pos">+${money(s.passive)}/mo</b></div>` : ""}
       <div><span>📬 Taxes</span><b>${taxLine}</b></div></div>`}
     ${k401}
-    ${p.fast ? "" : `<p class="muted" style="font-size:.8rem;margin:10px 0 0">✨ Dream: ${p.dream.icon} ${esc(p.dream.name)} (${money(p.dream.cost)})</p>`}
+    ${p.fast ? "" : `<p class="muted" style="font-size:.8rem;margin:10px 0 0">✨ Favorite dream: ${p.dream.icon} ${esc(p.dream.name)} (${money(dreamPrice(p, p.dream))} for you on the Fast Track)</p>`}
     <div class="actions"><button class="btn btn--accent" data-act="stmt" data-id="${p.id}">📄 Full statement</button></div>`;
 }
 
@@ -303,7 +317,7 @@ function renderPlayers(app) {
   $("players").innerHTML = `<h3>👥 Players</h3><div class="plist">${g.players.map((p) => {
     const s = statement(p, g.goal);
     const off = app.online && !app.online.has(p.id);
-    const prog = p.fast ? Math.min(1, p.cash / p.dream.cost) : s.progress;
+    const prog = p.fast ? Math.min(1, p.cash / dreamPrice(p, p.dream)) : s.progress;
     return `<button class="prow ${p.id === cur.id ? "is-turn" : ""}" style="--pc:${p.color}" data-act="stmt" data-id="${p.id}">
       <span class="dot"></span><span><b>${esc(p.name)}</b> <span class="badges">${badgeIcons(p)}</span> ${off ? `<span class="badge badge--off">offline</span>` : ""}${p.skip ? `<span class="badge">skips a turn</span>` : ""}${p.fast ? `<span class="badge badge--fast">🚀 Fast Track</span>` : ""}<small>${esc(p.job.employed ? p.job.title : "Between jobs")} · cash ${money(p.cash)}${p.credit ? ` · 💳 <span style="color:${creditTier(creditScore(p)).color}">${creditScore(p)}</span>` : ""}</small><span class="progress"><span style="width:${pct(prog)}"></span></span></span><span class="badge">${pct(prog)}</span></button>`;
   }).join("")}</div>`;
@@ -315,18 +329,18 @@ function renderLog(g) {
 }
 
 function renderFast(g) {
-  const cur = current(g);
-  const anyone = g.players.some((p) => p.fast);
-  $("fast").innerHTML = `<h3>🚀 Fast Track</h3><p class="muted" style="font-size:.84rem;margin:-4px 0 0">${anyone ? `Buy your dream or add ${money(FAST_WIN_CASHFLOW)}/mo of business cashflow to win.` : "Escape the rat race to get here. When it's your turn on the Fast Track, the board switches to this ring."}</p>
-    <div class="fastboard ${anyone ? "" : "is-locked"}">${FAST_BOARD.map((t, i) => {
-      const info = tileInfo(t), here = g.players.filter((p) => p.fast && p.fast.pos === i);
-      return `<div class="ftile ${cur.fast && cur.fast.pos === i ? "is-current" : ""}" style="--c:${info.color}" title="${esc(`${t}: ${info.tip}`)}"><span>${info.icon}</span>${here.map((p) => `<i class="token" style="--pc:${p.color}" title="${esc(p.name)}"></i>`).join("")}</div>`;
-    }).join("")}</div>`;
+  const cur = current(g), me = cur;
+  const rows = DREAMS.slice().sort((a, b) => a.cost - b.cost).map((d) => {
+    const fav = me.dream && me.dream.id === d.id;
+    return `<div class="tick"><span class="tick__name">${d.icon} ${esc(d.name)}${fav ? ` <small class="pos">· favorite −${Math.round(FAVORITE_DISCOUNT * 100)}%</small>` : ""}</span><span></span><b>${money(dreamPrice(me, d))}</b><span></span></div>`;
+  }).join("");
+  $("fast").innerHTML = `<h3>🚀 The Fast Track</h3><p class="muted" style="font-size:.84rem;margin:-4px 0 10px">Escape the rat race to move onto the figure 8. Your Payout Day = 100× your monthly passive income. Land on any ✨ dream and buy it to win, or add ${money(FAST_WIN_CASHFLOW)}/mo of business cashflow. Watch out for lawsuits, audits, crashes and bad partners.</p>
+    <p class="card__kicker">${DREAMS.length} dreams on the board</p><div class="ticks">${rows}</div>`;
 }
 
 // ---------------------------------------------------------------- cards
 function dreamPicker(p) {
-  return `<div class="dreams"><p class="card__kicker">✨ Pick your dream</p><p class="muted" style="margin:0 0 6px">What you'll buy once you're financially free:</p>${p.dreamOptions.map((id) => {
+  return `<div class="dreams"><p class="card__kicker">✨ Pick your favorite dream</p><p class="muted" style="margin:0 0 6px">Once you escape the rat race, land on any dream to buy it and win. Your favorite costs ${Math.round(FAVORITE_DISCOUNT * 100)}% less:</p>${p.dreamOptions.map((id) => {
     const d = DREAMS.find((x) => x.id === id);
     return `<button class="dream ${p.dream.id === id ? "is-on" : ""}" data-act="PICK_DREAM" data-id="${id}"><span>${d.icon}</span><b>${esc(d.name)}</b><small>${money(d.cost)}</small></button>`;
   }).join("")}</div>`;
@@ -380,7 +394,7 @@ function cardHTML(g, p, c = g.card, intro = "") {
       <div class="actions"><button class="btn btn--accent" data-act="BUY">Accept offer</button><button class="btn btn--ghost" data-act="PASS">Keep looking</button></div></div>`;
   }
   if (c.type === "charity") {
-    return `<div class="card"><p class="card__kicker">💛 Charity</p><h4>Donate ${money(c.amount)}?</h4><p class="story">That's 10% of a paycheck's income. Giving unlocks 2 dice for your next 3 turns.</p>
+    return `<div class="card"><p class="card__kicker">💛 Charity</p><h4>Donate ${money(c.amount)}?</h4><p class="story">${c.fast ? "Start a foundation with 10% of a Payout Day. Giving unlocks 3 dice for your next 3 turns." : "That's 10% of a paycheck's income. Giving unlocks 2 dice for your next 3 turns."}</p>
       <div class="actions"><button class="btn btn--accent" data-act="CHARITY" ${c.amount > p.cash ? "disabled" : ""}>Donate</button><button class="btn btn--ghost" data-act="PASS">Not this time</button></div></div>`;
   }
   if (c.type === "offer") {
@@ -388,6 +402,13 @@ function cardHTML(g, p, c = g.card, intro = "") {
     return `<div class="card"><p class="card__kicker">📨 Buyer offer</p><h4>${Math.round(c.multiplier * 100)}% of value for any ${esc(c.propType.toLowerCase())}</h4>
       ${mine.map((a) => { const sale = Math.round((a.value * c.multiplier) / 500) * 500; return `<div class="row" style="justify-content:space-between;margin:6px 0"><span>${esc(a.name)}<br><small class="muted">Sells for ${money(sale)}, loan ${money(a.loan)}</small></span><button class="btn btn--pink btn--sm" data-act="SELL_ASSET" data-id="${a.id}">Sell (net ${money(sale - a.loan)})</button></div>`; }).join("")}
       <div class="actions"><button class="btn btn--ghost" data-act="PASS">Done</button></div></div>`;
+  }
+  if (c.type === "venture" && c.moonshot) {
+    const short = c.price > p.cash;
+    return `<div class="card"><p class="card__kicker">🎲 Moonshot</p><h4>${esc(c.name)}</h4><p class="story">High risk, high reward. Pay now, then roll one die.</p>
+      <dl class="kv"><dt>Buy-in</dt><dd>${money(c.price)}</dd><dt>Roll 5 or 6 (1 in 3)</dt><dd class="pos">+${money(c.price * c.multiple)} (${c.multiple}×)</dd><dt>Roll 1–4</dt><dd class="neg">lose it all</dd>
+      <dt>Average outcome</dt><dd class="${cls(c.price * c.multiple / 3 - c.price)}">${money(c.price * c.multiple / 3 - c.price)}</dd><dt>Your cash</dt><dd>${money(p.cash)}</dd></dl>
+      <div class="actions"><button class="btn btn--accent" data-act="BUY" ${short ? "disabled" : ""}>Invest & roll 🎲</button><button class="btn btn--ghost" data-act="PASS">Pass</button></div></div>`;
   }
   if (c.type === "venture") {
     const short = c.price > p.cash;
@@ -397,9 +418,10 @@ function cardHTML(g, p, c = g.card, intro = "") {
   }
   if (c.type === "dream") {
     const short = c.price > p.cash;
-    return `<div class="card card--dream"><p class="card__kicker">✨ Your dream</p><h4>${c.icon} ${esc(c.name)}</h4>
-      <dl class="kv"><dt>Cost</dt><dd>${money(c.price)}</dd><dt>Your cash</dt><dd class="${short ? "neg" : "pos"}">${money(p.cash)}</dd></dl>
-      <div class="actions"><button class="btn btn--accent" data-act="BUY" ${short ? "disabled" : ""}>Buy my dream 🏆</button><button class="btn btn--ghost" data-act="PASS">Not yet</button></div></div>`;
+    return `<div class="card card--dream"><p class="card__kicker">✨ Dream${c.favorite ? " · your favorite!" : ""}</p><h4>${c.icon} ${esc(c.name)}</h4>
+      <dl class="kv"><dt>Price</dt><dd>${c.favorite ? `<s class="muted">${money(c.cost)}</s> ` : ""}${money(c.price)}</dd><dt>Your cash</dt><dd class="${short ? "neg" : "pos"}">${money(p.cash)}</dd></dl>
+      ${short ? `<p class="muted" style="margin:8px 0 0">You need ${money(c.price - p.cash)} more. Keep collecting Payout Days, then land on a dream you can afford.</p>` : `<p class="pos" style="margin:8px 0 0">Buy it and you win the game 🏆</p>`}
+      <div class="actions"><button class="btn btn--accent" data-act="BUY" ${short ? "disabled" : ""}>Buy this dream 🏆</button><button class="btn btn--ghost" data-act="PASS">Not yet</button></div></div>`;
   }
   return "";
 }
@@ -440,7 +462,7 @@ export function statementHTML(g, p, canManage) {
   <div class="fs-head"><div><p class="card__kicker" style="color:${p.color}">Financial statement · ${fmtDate(playerDate(g, p))} · ${p.taxYear} tax tables</p><h2>${esc(p.name)} <span class="badges">${badgeIcons(p)}</span></h2>
     ${lifeChips(p)}</div>
     <div class="stat"><small>Cash on hand</small><b>${money(p.cash, true)}</b></div></div>
-  ${p.fast ? `<div class="escape"><div class="row"><span>🚀 <b>Fast Track</b>: Payout Day pays ${money(p.fast.base + p.fast.added)}. Dream ${p.dream.icon} ${esc(p.dream.name)}: ${money(p.dream.cost)}</span><span>${money(p.fast.added)} / ${money(FAST_WIN_CASHFLOW)} added</span></div><div class="progress"><span style="width:${pct(Math.min(1, p.cash / p.dream.cost))}"></span></div></div>` :
+  ${p.fast ? `<div class="escape"><div class="row"><span>🚀 <b>Fast Track</b>: Payout Day pays ${money(p.fast.base + p.fast.added)}. Favorite dream ${p.dream.icon} ${esc(p.dream.name)}: ${money(dreamPrice(p, p.dream))}</span><span>${money(p.fast.added)} / ${money(FAST_WIN_CASHFLOW)} added</span></div><div class="progress"><span style="width:${pct(Math.min(1, p.cash / dreamPrice(p, p.dream)))}"></span></div></div>` :
     `<div class="escape"><div class="row"><span>🐀 <b>Rat race escape</b>: monthly passive income vs ${g.goal < 1 ? `${Math.round(g.goal * 100)}% of ` : ""}monthly living expenses</span><span><b class="pos">${money(s.passive)}</b> / ${money(s.target)}</span></div><div class="progress"><span style="width:${pct(s.progress)}"></span></div></div>`}
   ${p.fast ? "" : `<div style="margin-top:14px">${creditHTML(p, true)}</div>`}
   <div class="fs">

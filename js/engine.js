@@ -18,7 +18,7 @@ import { Rng } from "./rng.js";
 import { paycheckTaxes, PAYCHECKS_PER_YEAR as PP, FILING_LABEL, bestTaxYear, marginalRate, taxableIncome, refundableChildCredit } from "./tax.js";
 import { PROFESSIONS } from "./data/professions.js";
 import { STOCKS, REAL_ESTATE_STORIES, BUSINESS_STORIES } from "./data/stories.js";
-import { CITIES, ECONOMIES, CARS, SPENDING, ECON_EVENTS, PROPERTY_TYPES, STOCK_PRICING, DREAMS, FAST_BOARD, FAST_VENTURES, TIPS, BADGES } from "./data/world.js";
+import { CITIES, ECONOMIES, CARS, SPENDING, ECON_EVENTS, PROPERTY_TYPES, STOCK_PRICING, DREAMS, FAST_BOARD, FAST_VENTURES, MOONSHOTS, TIPS, BADGES } from "./data/world.js";
 import { say } from "./narrator.js";
 
 export const BOARD_SIZE = 9;
@@ -28,7 +28,12 @@ export const MAX_PLAYERS = 6;
 export const PLAYER_COLORS = ["#ff5d5d", "#4f8cff", "#2ecc71", "#f5b700", "#c56cf0", "#17c0eb"];
 export const EVENT_TILES = ["New Baby", "Charity", "Personal Spending", "RE Offer", "Downsizing", "Economic Event"];
 export const K401_CHOICES = [0, 0.03, 0.06, 0.1, 0.15];
-export const FAST_WIN_CASHFLOW = 50000; // Fast Track: win by adding $50k/month of cashflow (or buying your dream)
+export const FAST_WIN_CASHFLOW = 50000; // Fast Track: win by adding $50k/month of cashflow (or buying a dream)
+export const FAVORITE_DISCOUNT = 0.2;   // your own favorite dream costs 20% less
+/** The dream on a Fast Track tile ("Dream:<id>"), or null. */
+export const dreamAt = (tile) => (typeof tile === "string" && tile.startsWith("Dream:") ? DREAMS.find((d) => d.id === tile.slice(6)) || null : null);
+/** What a dream costs this player (their favorite is discounted). */
+export const dreamPrice = (p, d) => Math.round(d.cost * (p.dream && p.dream.id === d.id ? 1 - FAVORITE_DISCOUNT : 1));
 const DEGREE_FIELDS = new Set(["Healthcare", "Technology", "Finance & Business", "Legal", "Engineering", "Education", "Science"]);
 const BENEFIT_CAP = 1100;      // max unemployment benefit per paycheck
 const BENEFIT_CHECKS = 12;     // ~6 months of benefits
@@ -59,9 +64,10 @@ export function amortize(principal, annualRate, years) {
 
 // ---------------------------------------------------------------- setup
 export const LENGTHS = {
-  quick: { label: "Quick", ratio: 0.6, fast: false, desc: "Passive income covers 60% of expenses = you win" },
-  standard: { label: "Standard", ratio: 1, fast: false, desc: "Passive income covers 100% of expenses = you win" },
-  classic: { label: "Classic", ratio: 1, fast: true, desc: "Escape the rat race, then win on the Fast Track by buying your dream" },
+  quick: { label: "Quick", ratio: 0.6, fast: true, desc: "Escape when passive income covers 60% of expenses, then win a dream on the Fast Track" },
+  standard: { label: "Standard", ratio: 1, fast: true, desc: "Escape when passive income covers 100% of expenses, then win a dream on the Fast Track" },
+  sprint: { label: "Sprint", ratio: 1, fast: false, desc: "First to escape the rat race wins (no Fast Track)" },
+  classic: { label: "Standard", ratio: 1, fast: true, desc: "Escape the rat race, then win a dream on the Fast Track" }, // older saves
 };
 
 export function newGame({ seed, players, length = "standard", taxYear }) {
@@ -450,8 +456,8 @@ function checkProgress(state, p) {
   // Classic: move to the Fast Track. Payout Day pays 100x your monthly passive income (classic rule).
   p.fast = { pos: 0, base: nice(s.passive * 100, 100), added: 0, ventures: [] };
   p.cash = r2(p.cash + p.fast.base);
-  narrate(state, "escaped", { name: p.name, passive: money(s.passive), dream: `${p.dream.icon} ${p.dream.name} (${money(p.dream.cost)})` }, p.id);
-  log(state, `${p.name} starts the Fast Track with ${money(p.fast.base)} (Payout Day = 100× monthly passive income). Win by buying the dream, or by adding ${money(FAST_WIN_CASHFLOW)}/mo of cashflow.`, "good", p.id);
+  narrate(state, "escaped", { name: p.name, passive: money(s.passive), dream: `${p.dream.icon} ${p.dream.name}` }, p.id);
+  log(state, `${p.name} enters the Fast Track (the figure 8) with ${money(p.fast.base)}. Every Payout Day pays ${money(p.fast.base)} (100× monthly passive income). Land on any dream and buy it to win (your favorite is 20% off), or add ${money(FAST_WIN_CASHFLOW)}/mo of business cashflow.`, "good", p.id);
 }
 const checkWin = checkProgress;
 
@@ -548,8 +554,12 @@ function makeJobCard(rng, p) {
 }
 
 function makeVentureCard(rng) {
-  const price = nice(Math.exp(rng.tri(Math.log(100000), Math.log(400000), Math.log(2500000))), 1000);
-  return { type: "venture", name: rng.pick(FAST_VENTURES), price, cashflow: nice((price * rng.tri(0.06, 0.1, 0.18)) / 12, 100) };
+  if (rng.chance(0.3)) { // moonshot: pay now, roll a die, 5–6 pays a multiple
+    const price = nice(Math.exp(rng.tri(Math.log(100000), Math.log(300000), Math.log(1500000))), 1000);
+    return { type: "venture", moonshot: true, name: rng.pick(MOONSHOTS), price, multiple: rng.int(5, 12) };
+  }
+  const price = nice(Math.exp(rng.tri(Math.log(250000), Math.log(900000), Math.log(5000000))), 1000);
+  return { type: "venture", name: rng.pick(FAST_VENTURES), price, cashflow: nice((price * rng.tri(0.07, 0.11, 0.18)) / 12, 100) };
 }
 
 // ---------------------------------------------------------------- tiles
@@ -636,12 +646,27 @@ function resolveFastTile(state, rng, p) {
   const tile = FAST_BOARD[p.fast.pos];
   state.card = null;
   state.phase = "manage";
+  const dream = dreamAt(tile);
+  if (dream) {
+    state.card = { type: "dream", id: dream.id, name: dream.name, icon: dream.icon, cost: dream.cost, price: dreamPrice(p, dream), favorite: p.dream && p.dream.id === dream.id };
+    state.phase = "decide";
+    return;
+  }
   switch (tile) {
     case "Business": state.card = makeVentureCard(rng); state.phase = "decide"; break;
-    case "Dream":
-      state.card = { type: "dream", name: p.dream.name, icon: p.dream.icon, price: p.dream.cost };
+    case "Foundation": {
+      const amt = nice((p.fast.base + p.fast.added) * 0.1, 100);
+      state.card = { type: "charity", amount: amt, fast: true };
       state.phase = "decide";
+      narrate(state, "charity_offer", { name: p.name, amt: money(amt) }, p.id);
       break;
+    }
+    case "Bad Partner": {
+      const v = p.fast.ventures.slice().sort((a, b) => a.cashflow - b.cashflow)[0];
+      if (v) { p.fast.ventures = p.fast.ventures.filter((x) => x !== v); p.fast.added -= v.cashflow; log(state, `🤝💀 Bad partner! ${p.name}'s partner ran ${v.name} into the ground. Lost ${money(v.cashflow)}/mo of cashflow. Due diligence on people matters too.`, "warn", p.id, "lawsuit"); }
+      else log(state, `🤝 Bad Partner tile, but ${p.name} has no Fast Track businesses yet. Dodged it!`, "info", p.id);
+      break;
+    }
     case "Lawsuit": { const amt = nice(p.cash / 2, 1); p.cash = r2(p.cash - amt); narrate(state, "lawsuit", { name: p.name, amt: money(amt) }, p.id); break; }
     case "Tax Audit": { const amt = nice(p.cash * 0.3, 1); p.cash = r2(p.cash - amt); narrate(state, "audit", { name: p.name, amt: money(amt) }, p.id); break; }
     case "Market Crash": { const amt = nice(p.cash * 0.25, 1); p.cash = r2(p.cash - amt); narrate(state, "fast_crash", { name: p.name, amt: money(amt) }, p.id); break; }
@@ -842,6 +867,8 @@ function nextShare(state) {
 export function apply(prev, action) {
   if (prev.phase === "over") throw new GameError("The game is over.");
   const state = JSON.parse(JSON.stringify(prev));
+  for (const q of state.players) { if (q.fast && q.fast.pos >= FAST_TILES) q.fast.pos %= FAST_TILES; }
+  if (state.length === "classic") state.length = "standard";
   for (const q of state.players) { if (q.checks === undefined) { q.checks = 0; q.month = 0; } if (!q.tax) q.tax = { year: state.taxYear, w: 0.08, withheld: 0, owed: 0, passive: 0, checks: 0, pending: null }; }
   for (const q of state.players) if (!q.credit) q.credit = { base: 680, limit: 5000, hist: [680], onTime: 0, late: 0 };
   const rng = Rng.from(state.rng);
@@ -887,9 +914,11 @@ export function apply(prev, action) {
 
     case "ROLL": {
       if (state.phase !== "roll") throw new GameError("You've already rolled.");
-      const two = p.fast || p.charityTurns > 0; // the Fast Track always uses 2 dice
-      const dice = two ? [rng.int(1, 6), rng.int(1, 6)] : [rng.int(1, 6)];
-      if (!p.fast && p.charityTurns > 0) p.charityTurns -= 1;
+      // rat race: 1 die (2 with charity) · Fast Track: 2 dice (3 with charity)
+      const count = (p.fast ? 2 : 1) + (p.charityTurns > 0 ? 1 : 0);
+      const dice = Array.from({ length: count }, () => rng.int(1, 6));
+      const two = count > 1;
+      if (p.charityTurns > 0) p.charityTurns -= 1;
       const steps = dice.reduce((a, b) => a + b, 0);
       state.dice = dice;
       narrate(state, "roll", { name: p.name, n: two ? `${steps} (${dice.join(" + ")})` : steps }, p.id);
@@ -898,7 +927,8 @@ export function apply(prev, action) {
           p.fast.pos = (p.fast.pos + 1) % FAST_TILES;
           if (FAST_BOARD[p.fast.pos] === "Payout Day") { const amt = p.fast.base + p.fast.added; p.cash = r2(p.cash + amt); narrate(state, "cashflow_day", { name: p.name, amt: money(amt) }, p.id); }
         }
-        log(state, `📍 ${p.name} lands on ${FAST_BOARD[p.fast.pos]} (Fast Track).`, "move", p.id);
+        const dd = dreamAt(FAST_BOARD[p.fast.pos]);
+        log(state, `📍 ${p.name} lands on ${dd ? `${dd.icon} ${dd.name}` : FAST_BOARD[p.fast.pos]} (Fast Track).`, "move", p.id);
         resolveFastTile(state, rng, p);
       } else {
         for (let k = 1; k <= steps; k++) {
@@ -925,6 +955,15 @@ export function apply(prev, action) {
       if (card.type === "job") { hire(state, p, card); state.card = null; state.phase = "manage"; break; }
       if (card.type === "venture") {
         if (card.price > p.cash) throw new GameError(`You need ${money(card.price)}. You have ${money(p.cash)}.`);
+        if (card.moonshot) {
+          p.cash = r2(p.cash - card.price);
+          const roll = rng.int(1, 6);
+          state.dice = [roll];
+          if (roll >= 5) { const win = card.price * card.multiple; p.cash = r2(p.cash + win); p.stats.profit = r2(p.stats.profit + win - card.price); log(state, `🎲 ${p.name} rolled a ${roll}: the ${card.name} hit! ${card.multiple}× payout: +${money(win)} 🚀`, "good", p.id, "sold"); }
+          else { p.stats.profit = r2(p.stats.profit - card.price); log(state, `🎲 ${p.name} rolled a ${roll}: the ${card.name} fizzled. ${money(card.price)} gone. That's why it's called a moonshot.`, "warn", p.id, "spending"); }
+          state.card = null; state.phase = "manage";
+          break;
+        }
         p.cash = r2(p.cash - card.price); p.fast.added += card.cashflow; p.fast.ventures.push({ name: card.name, cashflow: card.cashflow });
         narrate(state, "bought", { name: p.name, asset: card.name, cf: money(card.cashflow) }, p.id);
         if (p.fast.added >= FAST_WIN_CASHFLOW) { state.winner = p.id; state.phase = "over"; narrate(state, "fast_win", { name: p.name, amt: money(p.fast.added) }, p.id); return finish(state, rng); }
@@ -932,7 +971,7 @@ export function apply(prev, action) {
         break;
       }
       if (card.type === "dream") {
-        if (card.price > p.cash) throw new GameError(`Your dream costs ${money(card.price)}. You have ${money(p.cash)}. Keep collecting Payout Days!`);
+        if (card.price > p.cash) throw new GameError(`This dream costs ${money(card.price)}. You have ${money(p.cash)}. Keep collecting Payout Days!`);
         p.cash = r2(p.cash - card.price);
         state.winner = p.id; state.phase = "over";
         narrate(state, "dream_win", { name: p.name, dream: `${card.icon} ${card.name}` }, p.id);
@@ -1130,6 +1169,8 @@ export function report(state) {
 
 // ---------------------------------------------------------------- views
 export function tileInfo(name) {
+  const d = dreamAt(name);
+  if (d) return { icon: d.icon, color: "#ff4fa3", tip: `Dream: ${d.name} (${money(d.cost)}). Land here and buy it to win`, dream: d };
   return {
     "Start": { icon: "🏁", color: "#2ecc71", tip: "Start" },
     "Pay Day": { icon: "💰", color: "#f5b700", tip: "Collect a paycheck when you land on or pass this" },
@@ -1143,11 +1184,12 @@ export function tileInfo(name) {
     // Fast Track
     "Payout Day": { icon: "💸", color: "#3cf5a0", tip: "Collect 100× your monthly passive income + your Fast Track business cashflow" },
     "Business": { icon: "🏢", color: "#4f8cff", tip: "Buy a big business: adds monthly cashflow. Add $50k/mo to win" },
-    "Dream": { icon: "✨", color: "#ff4fa3", tip: "Buy YOUR dream here to win" },
+    "Foundation": { icon: "🎗️", color: "#feca57", tip: "Start a foundation: donate 10% of a Payout Day to roll 3 dice for 3 turns" },
+    "Bad Partner": { icon: "🤝", color: "#ff5d6c", tip: "Lose your weakest Fast Track business" },
     "Lawsuit": { icon: "⚖️", color: "#ff5d6c", tip: "Lose half your cash" },
     "Tax Audit": { icon: "🧾", color: "#ff9f43", tip: "Pay 30% of your cash" },
     "Market Crash": { icon: "📉", color: "#576574", tip: "Lose 25% of your cash" },
   }[name] || { icon: "•", color: "#999", tip: name };
 }
 
-export { DREAMS, FAST_BOARD, BADGES };
+export { DREAMS, FAST_BOARD, BADGES, MOONSHOTS };

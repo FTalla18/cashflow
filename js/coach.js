@@ -2,7 +2,7 @@
 // next best moves (instant, offline, deterministic). If a Botpress bot is configured in
 // coach-config.js, a "Chat with Cash" button opens it for free-form questions.
 import { COACH } from "./coach-config.js";
-import { statement, actor, money, creditScore, creditTier, utilization, playerDate, MONTHS } from "./engine.js";
+import { statement, actor, money, creditScore, creditTier, utilization, playerDate, MONTHS, DREAMS, dreamPrice } from "./engine.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -26,7 +26,8 @@ export function advice(g, p) {
   const s = statement(p, g.goal);
   const out = [];
   if (p.fast) {
-    out.push(`You're on the Fast Track 🚀 Each Payout Day pays ${money(p.fast.base + p.fast.added)}. Your dream costs ${money(p.dream.cost)}, so you need ${money(Math.max(0, p.dream.cost - p.cash))} more.`);
+    const afford = DREAMS.filter((d) => dreamPrice(p, d) <= p.cash);
+    out.push(`You're on the Fast Track 🚀 Each Payout Day pays ${money(p.fast.base + p.fast.added)}. ${afford.length ? `You can already afford ${afford.length} of the ${DREAMS.length} dreams. Land on one and buy it to win!` : `The cheapest dream is ${money(Math.min(...DREAMS.map((d) => dreamPrice(p, d))))} and you have ${money(p.cash)}.`}`);
     out.push("Lawsuits and audits take a % of your CASH, so buying businesses protects money and grows Payout Day at the same time.");
     return out;
   }
@@ -70,7 +71,7 @@ export function snapshot(g, p) {
     `Life: ${p.life.city}, ${p.life.state} · ${p.life.housing === "own" ? "homeowner" : "renter"} · ${p.life.children} ${p.life.children === 1 ? "kid" : "kids"}`,
     `Cash: ${money(p.cash)} · Take-home: ${money(s.takeHome)} per paycheck (every 2 weeks)`,
     `Monthly bills: ${money(s.billsTotal)} · Monthly cashflow: ${money(s.monthlyCashflow)}`,
-    p.fast ? `Fast Track: dream ${p.dream.name} costs ${money(p.dream.cost)}; Payout Day pays ${money(p.fast.base + p.fast.added)}` : `Passive income: ${money(s.passive)}/mo of ${money(s.target)}/mo needed to escape (${Math.round(s.progress * 100)}%)`,
+    p.fast ? `Fast Track: favorite dream ${p.dream.name} costs me ${money(dreamPrice(p, p.dream))}; I can afford ${DREAMS.filter((d) => dreamPrice(p, d) <= p.cash).length} of ${DREAMS.length} dreams; Payout Day pays ${money(p.fast.base + p.fast.added)}; Fast Track businesses add ${money(p.fast.added)}/mo` : `Passive income: ${money(s.passive)}/mo of ${money(s.target)}/mo needed to escape (${Math.round(s.progress * 100)}%)`,
     `Debts: ${[...debts, ...loans].join("; ") || "none"}`,
     `Assets: ${assets.join("; ") || "none yet"} · Net worth ${money(s.netWorth)}`,
     `Credit score: ${sc} (${creditTier(sc).label}), card use ${Math.round(utilization(p) * 100)}%${p.credit && p.credit.late ? `, ${p.credit.late} missed payments` : ""}`,

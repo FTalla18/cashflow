@@ -24,7 +24,7 @@ A multiplayer, browser-based financial-literacy board game by Freeman T., grown 
   - Online play is browser-to-browser (WebRTC via PeerJS), so there's no server to run.
   - The host's browser referees every move.
 - **Deterministic:** every game comes from a seed, and the same seed plus the same moves always replay identically. Gen Z narration ("Cash") varies from game to game but never changes the outcome.
-- **Three modes:** Quick (60%), Standard (100%), and **Classic**: escape the rat race, then win on the 🚀 **Fast Track** (Payout Day, big business ventures, lawsuits, audits) by buying the dream you picked.
+- **The Fast Track ring:** escaping moves your token from the square rat race board onto a 40-tile ring around it, while everyone else keeps playing inside. Collect Payout Days (100× your passive income), buy big businesses, take moonshot bets, dodge lawsuits and audits. **The game ends when someone lands on one of 21 dreams** (Dinner with the President, a private island, a pro sports team…) **and buys it.** Modes: Quick (escape at 60%), Standard (escape at 100%), Sprint (first to escape wins).
 - **Live stock market:** every ticker has a price history with sparklines. Prices drift each round and react to news and economic events.
 - **Credit score (300–850):** built from payment history, card utilization and hard inquiries. Your tier sets your mortgage and bank-loan rates, so the same deal can cash-flow for one player and lose money for another.
 - **Money moves like real life:** paychecks every 2 weeks (taxes, 401(k), health insurance come out first), bills and passive income on the 1st of each month, and a yearly tax reconciliation: refund or bill in April, including tax on investment income.

@@ -43,7 +43,7 @@
           <div id="localNames" class="names"></div>
           <div class="row"><button class="btn btn--ghost btn--sm" data-act="addLocal">+ Add player</button></div>
           <label class="field"><span>Game length</span>
-            <select data-length="local"><option value="quick">Quick: passive income covers 60% of expenses</option><option value="standard" selected>Standard: passive income covers 100% of expenses</option><option value="classic">Classic: escape, then win your dream on the Fast Track</option></select>
+            <select data-length="local"><option value="quick">Quick: escape at 60%, then the Fast Track</option><option value="standard" selected>Standard: escape at 100%, then the Fast Track</option><option value="sprint">Sprint: first to escape the rat race wins</option></select>
           </label>
           <button class="btn btn--accent btn--block" data-act="startLocal">Start game</button>
         </article>
@@ -53,7 +53,7 @@
           <p class="muted">Get a room code and share it. Friends join from their own phones or laptops.</p>
           <label class="field"><span>Your name</span><input id="hostName" maxlength="18" placeholder="e.g. Freeman" /></label>
           <label class="field"><span>Game length</span>
-            <select data-length="host"><option value="quick">Quick (60%)</option><option value="standard" selected>Standard (100%)</option><option value="classic">Classic + Fast Track</option></select>
+            <select data-length="host"><option value="quick">Quick (escape at 60%)</option><option value="standard" selected>Standard (escape at 100%)</option><option value="sprint">Sprint (first to escape wins)</option></select>
           </label>
           <label class="field"><span>Turn timer</span>
             <select data-timer><option value="0">Off (offline players still auto-skip)</option><option value="60">60 seconds</option><option value="90" selected>90 seconds</option><option value="180">3 minutes</option></select>
@@ -99,8 +99,11 @@
 
       <div class="center">
         <div class="peek" id="peek" aria-live="polite"></div>
-        <div class="boardwrap">
-          <div class="board" id="board" aria-label="Game board"></div>
+        <div class="arena" id="arena">
+          <div class="ring" id="ring" aria-label="The Fast Track ring"></div>
+          <div class="boardwrap" id="ratwrap">
+            <div class="board" id="board" aria-label="The rat race board"></div>
+          </div>
           <div class="dice" id="dice" aria-live="polite"></div>
           <div class="stage" id="stage" hidden></div>
         </div>
@@ -119,7 +122,7 @@
       <button class="modal__close" data-act="close" aria-label="Close">×</button>
       <h2>How to play</h2>
       <ol>
-        <li><b>Goal:</b> be the first whose <b>passive income</b> (dividends, rentals, businesses) covers your <b>monthly living expenses</b>. The bars at the top show how close everyone is.</li>
+        <li><b>Goal:</b> escape the rat race (your <b>passive income</b> from dividends, rentals and businesses covers your <b>monthly living expenses</b>), then win a dream on the Fast Track. The bars at the top show how close everyone is.</li>
         <li><b>Your money moves like real life:</b> every <b>💰 Pay Day</b> you land on or pass is one paycheck (every 2 weeks): pay minus taxes, 401(k) and health insurance. On the <b>1st of each month</b> your bills go out (rent or mortgage, car, loans, cards, utilities, child care) and your passive income comes in.</li>
         <li><b>💡 Opportunity:</b> pick a <b>small deal</b> (stocks, funds, starter homes, small businesses) or a <b>big deal</b> (apartment buildings, commercial property, bigger businesses). Check the cashflow: some deals lose money!</li>
         <li><b>Events:</b> 🛍️ personal spending, 👶 new baby, 💛 charity (donate 10% to roll 2 dice for 3 turns), 📨 buyer offers for your property, 📉 downsizing (usually a furlough, sometimes a real layoff), 📰 economic news that hits everyone.</li>
@@ -129,7 +132,7 @@
         <li><b>Deals get shared:</b> pass on a deal and the next player can grab it. Stocks are open to everyone at the same price after someone buys.</li>
         <li><b>📈 Market:</b> prices move every round and swing with news. Each stock card shows its 52-week range. Growth stocks pay no dividends, so sell them high. Dividend funds pay you to hold.</li>
         <li><b>🏦 401(k):</b> pick a contribution %. Most employers match 50% up to 6%: free money, but it's locked for retirement and doesn't count toward escaping.</li>
-        <li><b>🚀 Classic mode:</b> escaping takes you to the <b>Fast Track</b>. Collect Payout Day (100× your monthly passive income), buy big businesses, dodge lawsuits and audits. Win by buying your <b>dream</b> or adding $50k/month of cashflow.</li>
+        <li><b>🚀 The Fast Track:</b> when your passive income covers your expenses, you leave the square board for the <b>Fast Track ring</b> around it (everyone else keeps playing the rat race inside). You roll 2 dice there and collect a <b>Payout Day</b> worth 100× your monthly passive income. Buy big businesses, take moonshot bets, and dodge lawsuits, audits, crashes and bad partners. <b>The game ends when someone lands on one of the 21 dreams</b> (Dinner with the President, a private island, a pro sports team…) <b>and buys it</b>, or adds $50k/month of business cashflow. Your favorite dream costs 20% less. <i>Sprint mode</i> ends at the first escape instead.</li>
         <li><b>💾 Saving:</b> every move saves automatically. Your last 8 games show under <b>Saved games</b> on the home screen. Online games reopen with the same room code, and friends rejoin with the same name.</li>
         <li><b>Online:</b> the host can set a turn timer. When it runs out, the game plays it safe for you. Disconnected players get skipped automatically.</li>
       </ol>

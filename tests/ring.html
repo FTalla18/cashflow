@@ -1,0 +1,25 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0">
+<iframe id="f" style="width:100vw;height:100vh;border:0"></iframe>
+<script type="module">
+// Builds a 3-player game where Freeman has escaped to the Fast Track ring, saves it, and resumes it in the app.
+import { newGame, apply, actor } from "../js/engine.js";
+let g = newGame({ seed: "ring-demo", players: [{ id: "p1", name: "Freeman" }, { id: "p2", name: "Jordan" }, { id: "p3", name: "Taylor" }] });
+g.players[0].properties.push({ id: "x", category: "biz", propType: "Car Wash", name: "Car wash chain", price: 900000, value: 900000, down: 90000, loan: 0, rate: 0, payment: 0, noi: 9000, cashflow: 9000 });
+for (let i = 0; i < 40 && !(g.players[0].fast && g.players[0].fast.pos > 0 && actor(g).id === "p1" && g.phase === "roll"); i++) {
+  const a = actor(g); g = apply(g, { type: g.phase === "roll" ? "ROLL" : g.phase === "manage" ? "END_TURN" : "PASS", by: a.id });
+}
+const q = new URLSearchParams(location.search);
+let seeded = false;
+f.src = "../index.html";
+f.onload = () => {
+  const w = f.contentWindow;
+  if (!seeded) {
+    w.localStorage.clear();
+    w.localStorage.setItem("cf.saves", JSON.stringify([{ v: 1, id: g.seed, mode: "local", savedAt: Date.now(), code: null, timer: 0, lobby: null, game: g }]));
+    seeded = true; w.location.reload(); return;
+  }
+  setTimeout(() => { f.contentDocument.querySelector('[data-act="resumeSave"]').click();
+    if (q.get("roll")) setTimeout(() => { const b = f.contentDocument.querySelector('[data-act="ROLL"]'); if (b) b.click(); }, 600);
+  }, 400);
+};
+</script></body></html>

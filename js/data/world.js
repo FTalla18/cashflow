@@ -93,39 +93,51 @@ export const STOCK_PRICING = {
 // ---------------------------------------------------------------- Dreams & the Fast Track
 // Each player picks a dream at the start. In Classic games, escaping the rat race moves you to the Fast Track,
 // where you win by buying your dream (land on a Dream tile with enough cash) or adding $50k/mo of cashflow.
+// The big goals. Each one is a tile on the Fast Track: land on ANY dream and buy it to win.
+// (The dream you pick at the start is your favorite: it costs 20% less, because you've been saving for it.)
 export const DREAMS = [
-  { id: "stadiums", name: "Catch a game at every MLB stadium", cost: 90000, icon: "⚾" },
-  { id: "world", name: "A year traveling around the world", cost: 150000, icon: "🌍" },
-  { id: "parents", name: "Pay off your parents' house", cost: 300000, icon: "🏡" },
-  { id: "scholarship", name: "Start a scholarship fund at your old school", cost: 250000, icon: "🎓" },
-  { id: "studio", name: "Open a community music studio", cost: 200000, icon: "🎧" },
-  { id: "foodtruck", name: "Launch a food truck empire", cost: 180000, icon: "🌮" },
-  { id: "sabbatical", name: "A year-long sabbatical in Japan", cost: 120000, icon: "🗾" },
-  { id: "angel", name: "Become an angel investor in 10 startups", cost: 500000, icon: "🚀" },
-  { id: "dreamhome", name: "A paid-off dream home on the water", cost: 1200000, icon: "🌊" },
-  { id: "sportscomplex", name: "Build a youth sports complex", cost: 900000, icon: "🏀" },
-  { id: "worldcup", name: "Front-row seats at a whole World Cup", cost: 110000, icon: "⚽" },
-  { id: "island", name: "A private island getaway for the whole family", cost: 1500000, icon: "🏝️" },
-  { id: "rescue", name: "Fund an animal rescue sanctuary", cost: 350000, icon: "🐾" },
-  { id: "gallery", name: "Open an art gallery for local artists", cost: 400000, icon: "🖼️" },
-  { id: "space", name: "A seat on a commercial space flight", cost: 600000, icon: "🛰️" },
-  { id: "classic", name: "Restore a classic car collection", cost: 280000, icon: "🚗" },
-  { id: "film", name: "Produce an indie film", cost: 450000, icon: "🎬" },
-  { id: "garden", name: "Build community gardens across your city", cost: 160000, icon: "🌱" },
+  { id: "president", name: "Dinner with the President (host a charity gala)", cost: 2500000, icon: "🎩" },
+  { id: "island", name: "A private island for the whole family", cost: 4000000, icon: "🏝️" },
+  { id: "cancerlab", name: "Fund a cancer research lab", cost: 6000000, icon: "🔬" },
+  { id: "jet", name: "Your own private jet", cost: 8000000, icon: "✈️" },
+  { id: "school", name: "Build a school in a village abroad", cost: 1500000, icon: "🏫" },
+  { id: "sportsteam", name: "Buy a stake in a pro sports team", cost: 15000000, icon: "🏟️" },
+  { id: "vineyard", name: "A vineyard & winery in Napa", cost: 7000000, icon: "🍇" },
+  { id: "space", name: "A seat on a private space flight", cost: 3000000, icon: "🚀" },
+  { id: "museum", name: "Open an art museum for local artists", cost: 5000000, icon: "🖼️" },
+  { id: "waterhome", name: "A paid-off dream home on the water", cost: 3500000, icon: "🌊" },
+  { id: "film", name: "Produce a feature film", cost: 4500000, icon: "🎬" },
+  { id: "yacht", name: "A superyacht trip around the world", cost: 2000000, icon: "🛥️" },
+  { id: "chalet", name: "A ski chalet in the Alps", cost: 5500000, icon: "🏔️" },
+  { id: "angel", name: "Back 10 startups as an angel investor", cost: 2500000, icon: "💡" },
+  { id: "scholarship", name: "Endow a scholarship at your old school", cost: 2000000, icon: "🎓" },
+  { id: "familydebt", name: "Pay off your whole family's debts", cost: 1800000, icon: "👨‍👩‍👧" },
+  { id: "rescue", name: "Fund an animal rescue sanctuary", cost: 2200000, icon: "🐾" },
+  { id: "classiccars", name: "A restored classic car collection", cost: 3000000, icon: "🚗" },
+  { id: "worldcup", name: "VIP seats at every World Cup final for life", cost: 2800000, icon: "⚽" },
+  { id: "studio", name: "A network of community music studios", cost: 1600000, icon: "🎧" },
+  { id: "foodtruck", name: "Launch a food truck empire", cost: 1700000, icon: "🌮" },
 ];
 
+// The Fast Track: 40 tiles laid out as a figure 8 (the path crosses itself in the middle).
+// "Dream:<id>" tiles hold one dream each (21 dreams), plus Payout Days, big business deals and hazards.
 export const FAST_BOARD = [
-  "Payout Day", "Business", "Dream", "Business", "Lawsuit", "Business",
-  "Payout Day", "Business", "Dream", "Tax Audit", "Business", "Business",
-  "Payout Day", "Business", "Dream", "Business", "Market Crash", "Business",
-  "Payout Day", "Business", "Dream", "Business", "Lawsuit", "Business",
+  "Payout Day", "Dream:president", "Business", "Dream:island", "Dream:cancerlab", "Lawsuit", "Dream:jet", "Business", "Dream:school", "Dream:sportsteam",
+  "Payout Day", "Dream:vineyard", "Business", "Dream:space", "Foundation", "Dream:museum", "Dream:waterhome", "Business", "Dream:film", "Tax Audit",
+  "Payout Day", "Dream:yacht", "Business", "Dream:chalet", "Dream:angel", "Market Crash", "Dream:scholarship", "Business", "Dream:familydebt", "Dream:rescue",
+  "Payout Day", "Dream:classiccars", "Business", "Dream:worldcup", "Bad Partner", "Payout Day", "Dream:studio", "Business", "Dream:foodtruck", "Business",
 ];
 
 export const FAST_VENTURES = [
   "Coffee franchise group (6 locations)", "Self-storage portfolio", "Community solar farm", "Minority stake in a pro sports team",
-  "Tech startup (Series A)", "Boutique hotel", "Car wash chain", "Medical office building", "Film production fund",
-  "200-unit apartment complex", "Data center lease", "Restaurant group", "EV charging network", "Vineyard & winery",
-  "Logistics warehouse portfolio", "Fitness franchise (10 gyms)", "Chain of laundromats", "Billboard network",
+  "Boutique hotel", "Car wash chain", "Medical office building", "Film production fund", "200-unit apartment complex",
+  "Data center lease", "Restaurant group", "EV charging network", "Vineyard & winery", "Logistics warehouse portfolio",
+  "Fitness franchise (10 gyms)", "Chain of laundromats", "Billboard network", "Shopping center", "Senior living community",
+];
+// High-risk, high-reward bets: pay up front, then roll a die. 5 or 6 = huge payout, otherwise it's gone.
+export const MOONSHOTS = [
+  "Biotech startup awaiting FDA approval", "AI startup (seed round)", "Oil & gas wildcat well", "Gold mining claim",
+  "Pre-IPO tech shares", "Real estate development (rezoning bet)", "Patent lawsuit funding", "Hit-song music catalog bid",
 ];
 
 // ---------------------------------------------------------------- Money tips (shown once per player, the first time it happens)
