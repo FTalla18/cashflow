@@ -337,6 +337,27 @@ function simulate(seed, nPlayers, maxRounds = 300, length = "standard") {
   ok("paying more than the balance = paid off", !d.players[0].debts.credit || d.players[0].cash < 0, "");
 }
 
+// ---------- 12. Principal payments in $1 steps, property loans, quick sale at 10% below market
+{
+  let g = newGame({ seed: "principal", players: [{ id: 1, name: "A" }] });
+  const p0 = g.players[0];
+  p0.cash = 50000;
+  p0.debts.student = { label: "Student loans", balance: 10000, monthly: 114, rate: 0.065 };
+  p0.properties.push({ id: "r1", category: "re", propType: "HOUSE FOR SALE", name: "Duplex", price: 200000, value: 200000, down: 20000, loan: 180000, rate: 0.07, payment: 1198, noi: 1500, cashflow: 302 });
+  p0.stocks.push({ ticker: "QuickFix", shares: 10, cost: 10, div: 0, price: g.market.QuickFix.price });
+  g = apply(g, { type: "ROLL", by: "1" });
+  while (g.phase !== "manage" && g.phase !== "over") g = apply(g, { type: "PASS", by: actor(g).id });
+  g = apply(g, { type: "PAY_DOWN", key: "student", amount: 1234, by: "1" });
+  ok("principal payment of $1,234 (not rounded to $100)", g.players[0].debts.student.balance === 8766, `${g.players[0].debts.student.balance}`);
+  const before = statement(g.players[0]).passive;
+  g = apply(g, { type: "PAY_DOWN", key: "prop:r1", amount: 60000 > g.players[0].cash ? 30000 : 30000, by: "1" });
+  const r = g.players[0].properties.find((x) => x.id === "r1");
+  ok("principal payment on a rental loan lowers its payment and raises cashflow", r.loan === 150000 && r.payment === Math.round(1198 * (150000 / 180000)) && r.cashflow > 302 && statement(g.players[0]).passive > before, JSON.stringify(r));
+  const mkt = g.market.QuickFix.price, cash0 = g.players[0].cash;
+  g = apply(g, { type: "SELL_STOCK", ticker: "QuickFix", qty: 10, by: "1" });
+  ok("quick sale = 10% below market", Math.abs(g.players[0].cash - cash0 - 10 * Math.max(1, Math.round(mkt * 0.9))) < 0.01, `market ${mkt}`);
+}
+
 // ---------- 8. Classic mode game length
 {
   const rr = [];

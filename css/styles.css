@@ -337,3 +337,9 @@ body.in-game .sitefoot { padding-bottom: 120px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 .rail { scrollbar-width: none; }
 .rail::-webkit-scrollbar { display: none; }
+
+.dock__job { color: var(--text) !important; font-weight: 600; }
+.jobcard { margin: 12px 0 0; padding: 11px 13px; border-radius: 14px; background: linear-gradient(135deg, rgba(47, 123, 255, .25), rgba(34, 211, 238, .12)); border: 1px solid rgba(124, 196, 255, .3); display: grid; gap: 2px; }
+.jobcard small { color: var(--muted); font-size: .72rem; font-weight: 600; }
+.jobcard b { font-family: var(--display); font-size: 1.15rem; }
+.jobcard span { font-size: .82rem; color: #cfe0ff; }

@@ -11,6 +11,8 @@ const cls = (n) => (n >= 0 ? "pos" : "neg");
 const short$ = (n) => (Math.abs(n) >= 1000 ? `$${(n / 1000).toFixed(Math.abs(n) >= 10000 ? 0 : 1)}k` : money(n));
 const badgeIcons = (p) => p.badges.map((b) => `<span title="${esc(BADGES[b].label)}">${BADGES[b].emoji}</span>`).join("");
 const fmtDate = (d) => `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+/** "Data Scientist · $98,400/yr" (or what they did before, if between jobs). */
+const jobLine = (p) => p.job.employed ? `${p.job.title} · ${money(p.job.annual)}/yr${p.job.gig ? " (varies)" : ""}` : `Between jobs (was ${p.job.title}) · ${p.job.benefitsLeft ? `${money(p.job.benefit)} benefits/paycheck` : "no benefits left"}`;
 const viewer = (app) => app.game.players.find((x) => x.id === app.viewerId) || actor(app.game);
 
 // ---------------------------------------------------------------- charts
@@ -69,7 +71,7 @@ function renderRace(app) {
     const prog = p.fast ? Math.min(1, p.cash / p.dream.cost) : s.progress;
     const label = p.fast ? `🚀 ${p.dream.icon} ${short$(p.cash)} / ${short$(p.dream.cost)}` : `${short$(s.passive)} / ${short$(s.target)} a month`;
     const off = app.online && !app.online.has(p.id);
-    return `<button class="racer ${p.id === cur.id ? "is-turn" : ""}" style="--pc:${p.color}" data-act="stmt" data-id="${p.id}" title="${esc(p.name)}: ${pct(prog)} of the way out">
+    return `<button class="racer ${p.id === cur.id ? "is-turn" : ""}" style="--pc:${p.color}" data-act="stmt" data-id="${p.id}" title="${esc(p.name)} · ${esc(jobLine(p))} · ${pct(prog)} of the way out">
       <span class="dot"></span><b>${esc(p.name)}${off ? " 💤" : ""}</b><small>${label}</small><span class="progress"><span style="width:${pct(prog)}"></span></span></button>`;
   }).join("");
 }
@@ -194,7 +196,7 @@ function renderDock(app) {
   } else if (g.phase === "decide" || g.phase === "choose") {
     btns = `<button class="btn btn--ghost" data-act="stmt" data-id="${p.id}">💼 Manage money</button>`;
   }
-  el.innerHTML = `<div class="dock__who" style="--pc:${p.color}"><span class="dot"></span><div><b>${esc(p.name)}'s turn${you}</b><small>${hint}</small></div></div>
+  el.innerHTML = `<div class="dock__who" style="--pc:${p.color}"><span class="dot"></span><div><b>${esc(p.name)}'s turn${you}</b><small class="dock__job">💼 ${esc(jobLine(p))}</small><small>${hint}</small></div></div>
     <div class="dock__cash"><small>${app.mode === "local" ? `${esc(me.name)}'s cash` : "Your cash"}</small><b id="dockCash">${money(shown[me.id] ?? me.cash)}</b></div>
     <div class="dock__btns">${btns}</div>`;
   countUp($("dockCash"), shown[me.id] ?? me.cash, me.cash);
@@ -230,7 +232,7 @@ function renderPanes(app) {
 
 function lifeChips(p) {
   const fam = p.life.filing === "married_joint" || p.life.filing === "married_separate" ? "💍 Married" : p.life.filing === "head_household" ? "🏡 Head of household" : "👤 Single";
-  return `<div class="lifechips"><span>💼 ${esc(p.job.employed ? p.job.title : `Between jobs (was ${p.job.title})`)}</span><span>📍 ${esc(p.life.city)}, ${esc(p.life.state)}</span>
+  return `<div class="lifechips"><span>💼 ${esc(jobLine(p))}</span><span>📍 ${esc(p.life.city)}, ${esc(p.life.state)}</span>
     <span>${p.life.housing === "own" ? "🏠 Homeowner" : "🔑 Renter"}</span><span>🚗 ${esc(p.life.car)}</span><span>${fam}</span>${p.life.children ? `<span>👶 ${p.life.children} ${p.life.children > 1 ? "Kids" : "Kid"}</span>` : ""}${p.life.spouse ? `<span>💑 Spouse: ${esc(p.life.spouse.title)}</span>` : ""}</div>`;
 }
 
@@ -252,6 +254,7 @@ function renderMe(app) {
       <div class="progress"><span style="width:${pct(s.progress)}"></span></div>`;
   $("me").innerHTML = `<h3>${app.mode === "local" ? `${esc(p.name)}'s money` : "Your money"} <span class="badges">${badgeIcons(p)}</span></h3>
     ${lifeChips(p)}
+    <div class="jobcard"><small>${p.job.employed ? "Your job" : "Job status"}</small><b>💼 ${esc(p.job.employed ? p.job.title : "Between jobs")}</b><span>${p.job.employed ? `${money(p.job.annual)}/yr · ${money(p.job.annual / 26)} gross per paycheck${p.job.gig ? " (gig pay varies)" : ""}` : `Was ${esc(p.job.title)} · ${p.job.benefitsLeft ? `${money(p.job.benefit)} unemployment per paycheck, ${p.job.benefitsLeft} left` : "benefits ran out"}`}${p.life.spouse ? ` · spouse: ${esc(p.life.spouse.title)} ${money(p.life.spouse.annual)}/yr` : ""}</span></div>
     <div class="stats"><div class="stat"><small>Cash</small><b>${money(p.cash)}</b></div><div class="stat"><small>Net worth</small><b class="${cls(s.netWorth)}">${money(s.netWorth)}</b></div>
       <div class="stat"><small>Take-home per paycheck</small><b>${money(s.takeHome)}</b></div><div class="stat"><small>Monthly cashflow</small><b class="${cls(s.monthlyCashflow)}">${money(s.monthlyCashflow)}</b></div></div>
     ${escape}
@@ -425,11 +428,14 @@ export function statementHTML(g, p, canManage) {
   const s = statement(p, g.goal);
   const line = (label, amt, cl = "") => `<tr><td>${esc(label)}</td><td class="${cl || (amt < 0 ? "neg" : "")}">${money(amt, true)}</td></tr>`;
   const bank = p.debts.bank;
-  const quick = (st) => g.card && g.card.type === "stock" && g.card.ticker === st.ticker ? "Sell at market" : `Quick sell @ ${money(Math.max(1, Math.round(g.market[st.ticker].price * 0.8)))} (−20%)`;
+  const quick = (st) => g.card && g.card.type === "stock" && g.card.ticker === st.ticker ? "Sell at market" : `Quick sell @ ${money(Math.max(1, Math.round(g.market[st.ticker].price * 0.9)))} (10% below market)`;
   const t = p.tax || {};
+  const principal = (key, label, balance) => `<div class="debtctl"><span class="muted" style="font-size:.74rem">Principal payment $</span><input class="inp inp--sm" type="number" min="1" step="1" value="${Math.max(1, Math.min(Math.floor(balance), Math.floor(p.cash)))}" data-paydown="${key}" aria-label="Principal payment toward ${esc(label)}" />
+        <button class="btn btn--ghost btn--xs" data-act="PAY_DOWN" data-key="${key}" ${p.cash < 1 ? "disabled" : ""}>Pay</button><button class="btn btn--ghost btn--xs" data-act="PAY_DOWN" data-key="${key}" data-all="${Math.ceil(balance)}" ${balance > p.cash ? "disabled" : ""}>Pay off ${money(balance)}</button></div>`;
   const debtRow = ([k, d]) => `<tr><td>${esc(d.label)} <small class="muted">${(d.rate * 100).toFixed(1)}% · ${money(d.monthly)}/mo</small>
-      ${canManage ? `<div class="debtctl"><input class="inp inp--sm" type="number" min="100" step="100" value="${Math.max(100, Math.min(Math.floor(d.balance / 100) * 100, Math.floor(p.cash / 100) * 100) || 100)}" data-paydown="${k}" aria-label="Amount to pay toward ${esc(d.label)}" />
-        <button class="btn btn--ghost btn--xs" data-act="PAY_DOWN" data-key="${k}">Pay down</button>${k !== "bank" ? `<button class="btn btn--ghost btn--xs" data-act="PAYOFF" data-key="${k}" ${d.balance > p.cash ? "disabled" : ""}>Pay off ${money(d.balance)}</button>` : ""}</div>` : ""}</td><td>${money(d.balance)}</td></tr>`;
+      ${canManage ? principal(k, d.label, d.balance) : ""}</td><td>${money(d.balance)}</td></tr>`;
+  const propLoanRow = (a) => `<tr><td>${esc(a.name)} loan <small class="muted">${(a.rate * 100).toFixed(2)}% · ${money(a.payment)}/mo</small>
+      ${canManage ? principal(`prop:${a.id}`, `${a.name} loan`, a.loan) : ""}</td><td>${money(a.loan)}</td></tr>`;
   return `<button class="modal__close" data-act="close" aria-label="Close">×</button>
   <div class="fs-head"><div><p class="card__kicker" style="color:${p.color}">Financial statement · ${fmtDate(playerDate(g, p))} · ${p.taxYear} tax tables</p><h2>${esc(p.name)} <span class="badges">${badgeIcons(p)}</span></h2>
     ${lifeChips(p)}</div>
@@ -454,9 +460,9 @@ export function statementHTML(g, p, canManage) {
       ${p.properties.map((a) => `<tr><td>${esc(a.name)} <small class="${cls(a.cashflow)}">${money(a.cashflow)}/mo</small>${canManage ? ` <button class="btn btn--danger btn--xs" data-act="SELL_ASSET" data-id="${a.id}">Fire sale</button>` : ""}</td><td>${money(a.value)}</td></tr>`).join("")}
       ${p.fast ? p.fast.ventures.map((v) => `<tr><td>🏢 ${esc(v.name)} <small class="pos">+${money(v.cashflow)}/mo</small></td><td></td></tr>`).join("") : ""}
       <tr class="total"><td>Net worth</td><td class="${cls(s.netWorth)}">${money(s.netWorth)}</td></tr></table></section>
-    <section><h4>🧾 Liabilities</h4><p>${canManage ? "Pay a debt off, or just pay part of it down" : "What you owe"}</p><table>
+    <section><h4>🧾 Liabilities</h4><p>${canManage ? "Make a principal payment of any amount, or pay a loan off. Paying down a property loan raises its cashflow." : "What you owe (payments open after you roll, on your turn)"}</p><table>
       ${Object.entries(p.debts).map(debtRow).join("")}
-      ${p.properties.filter((a) => a.loan > 0).map((a) => line(`${a.name} loan`, a.loan)).join("")}
+      ${p.properties.filter((a) => a.loan > 0).map(propLoanRow).join("")}
       ${!Object.keys(p.debts).length && !p.properties.some((a) => a.loan > 0) ? `<tr><td class="muted">Debt-free 🎉</td><td></td></tr>` : ""}</table>
       ${canManage ? `<div class="loanbox"><input class="inp" type="number" min="1000" step="1000" value="5000" id="loanAmt" aria-label="Loan amount" /><button class="btn btn--ghost btn--sm" data-act="BORROW">Borrow</button>${bank ? `<button class="btn btn--ghost btn--sm" data-act="REPAY">Repay</button>` : ""}</div><p class="muted" style="font-size:.78rem;margin:6px 0 0">Bank loans: $1,000 steps at ${((g.economy.personal + creditTier(creditScore(p)).personal) * 100).toFixed(1)}% for 5 years (${creditTier(creditScore(p)).label} credit). Each new loan is a hard inquiry (−6 points).</p>` : ""}
       ${p.tax ? `<p class="muted" style="font-size:.8rem;margin:12px 0 0">📬 <b>Taxes:</b> ${t.year} so far ${money(t.withheld || 0)} federal tax withheld vs ${money(t.owed || 0)} owed on wages${t.passive ? `, plus tax on ${money(t.passive)} of investment income` : ""}. ${t.pending ? `${t.pending.year} return: ${t.pending.amount >= 0 ? `<b class="pos">${money(t.pending.amount)} refund</b>` : `<b class="neg">${money(-t.pending.amount)} owed</b>`} in April.` : "Settles in April."}</p>` : ""}

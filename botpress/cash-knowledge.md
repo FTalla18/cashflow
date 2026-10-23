@@ -40,12 +40,12 @@
 - **Cash-on-cash return** = (monthly cashflow × 12) ÷ down payment. Above 10% is good, above 20% is great. Negative cashflow = a liability that costs you every month.
 - **Stocks:** every stock card shows its 52-week range and where today's price sits (near the low 🔥, mid-range, or near the high ⚠️). Patient investors wait for prices near the low. Growth stocks usually pay no dividends (they don't count toward escaping), so buy low and sell high when the same stock card comes up. **Funds** (dividend index, Treasury bonds, REIT index) pay dividends, which ARE passive income.
 - **The market:** every ticker has a price history (shown in the 📈 Market panel). Prices drift each round and jump on news. A stock card can move the price up (good news) or down (bad news).
-- **Selling:** on a matching stock card you sell at market. Otherwise a quick sale costs 20%. Property sells at the buyer's offer on an RE Offer tile, or as a fire sale (90% of value, minus 5% fees, minus 20% of equity) any time.
+- **Selling:** on a matching stock card you sell at market. Otherwise a quick sale gets 10% below the current market price. Property sells at the buyer's offer on an RE Offer tile, or as a fire sale (90% of value, minus 5% fees, minus 20% of equity) any time.
 - **Deal sharing:** if you pass on a deal, the next player who can afford it gets offered it. If you buy a stock, everyone else can buy it at the same price too.
 
 ## Money moves
 - **Pay off debt:** removes that monthly payment from your bills forever. Highest interest first (credit cards ~22%+, retail/BNPL ~30%).
-- **Pay down debt:** pay any amount ($100 steps) toward a debt in the statement's Liabilities section. Card and retail minimums drop with the balance (and paying cards down improves utilization → credit score). Car, student and mortgage payments drop in proportion (like a loan 'recast'). In real life, extra payments on a car or mortgage usually shorten the loan instead of lowering the payment unless you ask the lender to recast.
+- **Principal payments:** in the statement's Liabilities section (on your turn, after rolling), pay any whole-dollar amount toward ANY debt or property/business loan, or pay it off. Card and retail minimums drop with the balance (and lower card balances raise your credit score). Car, student and mortgage payments drop in proportion (like a loan 'recast'). Paying down a rental or business loan lowers its loan payment, so its monthly cashflow (passive income) goes UP, which moves you closer to escaping. In real life, extra principal on a car or mortgage usually shortens the loan instead of lowering the payment unless you ask the lender to recast.
 - **Bank loans:** borrow in $1,000 steps (5-year loan at the current bank rate). The limit depends on your income. Good for buying a cash-flowing asset, bad for doodads.
 - **401(k):** choose 0%, 3%, 6%, 10% or 15% of pay. It's pre-tax (lowers your income tax). About 75% of employers match 50% of what you put in, up to 6% of your pay. That's free money for retirement, but it's locked and doesn't count toward escaping. Trade-off: more 401(k) = smaller paycheck now.
 - **HSA:** pre-tax savings for health costs (skips FICA too).
@@ -74,6 +74,9 @@
 
 ## Badges
 🌱 First asset · 🌟 Exceptional credit (800+) · 🏠 Landlord · 🏪 Business owner · 📈 Dividend earner · ✂️ Debt slayer · 🕊️ Consumer-debt free · 💛 Generous · 💪 Comeback kid (hired after a layoff) · 🧗 Halfway out · 🚀 Escaped · 💰 Sold an asset for a profit.
+
+## Your game snapshot
+When a player taps "Chat about my numbers", the game sends a message that starts with "📊 My Rat Race Royale snapshot". It lists their job and salary, cash, take-home pay, monthly bills, monthly cashflow, passive income vs. the target, debts (balance, rate, payment), assets, credit score, 401(k) and upcoming taxes. Use those exact numbers to coach them.
 
 ## The screen
 - **Top bar:** everyone's race out of the rat race (passive income vs. what they need each month). Tap a name to see their statement.

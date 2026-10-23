@@ -2,7 +2,7 @@
 // next best moves (instant, offline, deterministic). If a Botpress bot is configured in
 // coach-config.js, a "Chat with Cash" button opens it for free-form questions.
 import { COACH } from "./coach-config.js";
-import { statement, actor, money, creditScore, creditTier, utilization } from "./engine.js";
+import { statement, actor, money, creditScore, creditTier, utilization, playerDate, MONTHS } from "./engine.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -53,19 +53,69 @@ export function advice(g, p) {
   return out.slice(0, 4);
 }
 
+/**
+ * A plain-text snapshot of a player's game finances. The AI chat can't see the screen, so "Chat about my numbers"
+ * sends this as the opening message (visible to the player, nothing hidden).
+ */
+export function snapshot(g, p) {
+  const s = statement(p, g.goal), d = playerDate(g, p);
+  const sc = creditScore(p);
+  const job = p.job.employed ? `${p.job.title}, ${money(p.job.annual)}/yr${p.job.gig ? " (gig, pay varies)" : ""}` : `between jobs (was ${p.job.title}), ${p.job.benefitsLeft ? `${money(p.job.benefit)} unemployment per paycheck, ${p.job.benefitsLeft} checks left` : "no benefits left"}`;
+  const debts = Object.values(p.debts).map((x) => `${x.label} ${money(x.balance)} at ${(x.rate * 100).toFixed(1)}% (${money(x.monthly)}/mo)`);
+  const loans = p.properties.filter((a) => a.loan > 0).map((a) => `${a.name} loan ${money(a.loan)} at ${(a.rate * 100).toFixed(2)}% (${money(a.payment)}/mo)`);
+  const assets = [...p.properties.map((a) => `${a.name} (cashflow ${money(a.cashflow)}/mo)`), ...p.stocks.map((h) => `${h.shares} ${h.ticker} @ ${money(h.price)}${h.div ? " (pays dividends)" : ""}`)];
+  const lines = [
+    `📊 My Rat Race Royale snapshot (${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}, round ${g.round}, ${g.length} mode)`,
+    `Job: ${job}${p.life.spouse ? `. Spouse: ${p.life.spouse.title}, ${money(p.life.spouse.annual)}/yr` : ""}`,
+    `Life: ${p.life.city}, ${p.life.state} · ${p.life.housing === "own" ? "homeowner" : "renter"} · ${p.life.children} ${p.life.children === 1 ? "kid" : "kids"}`,
+    `Cash: ${money(p.cash)} · Take-home: ${money(s.takeHome)} per paycheck (every 2 weeks)`,
+    `Monthly bills: ${money(s.billsTotal)} · Monthly cashflow: ${money(s.monthlyCashflow)}`,
+    p.fast ? `Fast Track: dream ${p.dream.name} costs ${money(p.dream.cost)}; Payout Day pays ${money(p.fast.base + p.fast.added)}` : `Passive income: ${money(s.passive)}/mo of ${money(s.target)}/mo needed to escape (${Math.round(s.progress * 100)}%)`,
+    `Debts: ${[...debts, ...loans].join("; ") || "none"}`,
+    `Assets: ${assets.join("; ") || "none yet"} · Net worth ${money(s.netWorth)}`,
+    `Credit score: ${sc} (${creditTier(sc).label}), card use ${Math.round(utilization(p) * 100)}%${p.credit && p.credit.late ? `, ${p.credit.late} missed payments` : ""}`,
+    `401(k): ${Math.round(p.k401Rate * 100)}%${p.job.match ? " (employer matches 50% up to 6%)" : ""} · Taxes: ${p.tax && p.tax.pending ? `${p.tax.pending.amount >= 0 ? `${money(p.tax.pending.amount)} refund` : `${money(-p.tax.pending.amount)} owed`} coming in April` : "nothing pending"}`,
+    `What should I do next?`,
+  ];
+  return lines.join("\n");
+}
+
+/** Open the Botpress chat; optionally send a first message once the chat has a conversation going. */
+let convoReady = null;
+async function openChat(message) {
+  await loadBot();
+  if (!convoReady) convoReady = new Promise((res) => {
+    try { window.botpress.on("conversation", () => res(true)); } catch {}
+    setTimeout(() => res(false), 12000);
+  });
+  window.botpress.open();
+  if (!message) return true;
+  await convoReady;
+  await new Promise((r) => setTimeout(r, 400));
+  try {
+    await Promise.race([window.botpress.sendMessage(message), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 10000))]);
+    return true;
+  } catch { return false; }
+}
+
 export async function openCoach(g, viewerId) {
   const dlg = $("coachDialog");
   const p = g ? g.players.find((x) => x.id === viewerId) || actor(g) : null;
   $("coachBody").innerHTML = `<button class="modal__close" data-act="close" aria-label="Close">×</button>
     <p class="card__kicker">💬 Ask Cash</p><h2>${p ? `Cash's take on ${esc(p.name)}'s money` : "Hey, I'm Cash 👋"}</h2>
     ${p ? `<ul class="advice">${advice(g, p).map((a) => `<li>${esc(a)}</li>`).join("")}</ul>` : `<p class="muted">Start a game and I'll read your financial statement and tell you the next best move. No cap.</p>`}
-    ${botReady() ? `<button class="btn btn--accent" id="chatCash">Chat with Cash (AI) 💬</button>` : ""}
+    ${botReady() ? `<div class="actions">${p ? `<button class="btn btn--accent" id="chatMine">📊 Chat about my numbers</button>` : ""}<button class="btn btn--ghost" id="chatCash">💬 Just chat</button></div>
+      ${p ? `<p class="muted" style="font-size:.76rem;margin:8px 0 0">"Chat about my numbers" sends Cash a snapshot of ${esc(p.name)}'s game finances (job, cash, bills, debts, credit) as your first message.</p>` : ""}` : ""}
     <p class="muted" style="font-size:.78rem;margin:12px 0 0">Cash is a game coach, not a financial advisor 💅</p>`;
   dlg.showModal();
-  const btn = $("chatCash");
-  if (btn) btn.onclick = async () => {
-    btn.disabled = true; btn.textContent = "Loading Cash…";
-    try { await loadBot(); dlg.close(); window.botpress && window.botpress.open(); }
-    catch { btn.textContent = "Couldn't load the chat. Try again later."; }
-  };
+  const go = (btn, msg) => btn && (btn.onclick = async () => {
+    btn.disabled = true; const label = btn.textContent; btn.textContent = "Loading Cash…";
+    try {
+      const sent = await openChat(msg); dlg.close();
+      if (msg && !sent) { try { await navigator.clipboard.writeText(msg); } catch {} alert("Cash's chat opened, but the snapshot couldn't be sent automatically. It's copied: paste it into the chat."); }
+    } catch { btn.textContent = "Couldn't load the chat. Try again later."; return; }
+    btn.disabled = false; btn.textContent = label;
+  });
+  go($("chatMine"), p ? snapshot(g, p) : null);
+  go($("chatCash"), null);
 }

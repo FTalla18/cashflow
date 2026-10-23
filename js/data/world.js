@@ -137,7 +137,7 @@ export const TIPS = {
   loan: "💡 Money tip: bank loans can fund good deals, but they add a payment every check. Borrow for assets, not for doodads.",
   doodad: "💡 Money tip: doodads are wants dressed up as needs. A small emergency fund means surprises don't turn into debt.",
   layoff: "💡 Money tip: this is why people keep 3–6 months of expenses in savings. An emergency fund buys you time to find the right job.",
-  quick_sale: "💡 Money tip: selling in a hurry costs you (that 20% hit). Liquidity, or having cash when you need it, has real value.",
+  quick_sale: "💡 Money tip: selling in a hurry costs you (stocks sell 10% below market, property fire sales cost even more). Liquidity, or having cash when you need it, has real value.",
   charity: "💡 Money tip: generosity is part of wealth too. Plus, donations to charities can be tax-deductible if you itemize.",
   no_match: "💡 Money tip: your employer matches 401(k) contributions, but you're putting in 0%. That's free money left on the table!",
   match: "💡 Money tip: your employer is matching your 401(k), which is instant free money. It's locked until retirement, but it compounds for decades.",

@@ -370,7 +370,7 @@ document.addEventListener("click", (e) => {
     case "stmt": openStatement(b.dataset.id); break;
     case "stmtMe": if (app.game) openStatement((app.game.players.find((p) => p.id === app.viewerId) || current(app.game)).id); break;
     case "pane": app.pane = !b.dataset.pane || app.pane === b.dataset.pane ? null : b.dataset.pane; sfx.click(); if (app.game) renderGame(app); break;
-    case "PAY_DOWN": { const inp = document.querySelector(`[data-paydown="${CSS.escape(b.dataset.key)}"]`); dispatch({ type: "PAY_DOWN", key: b.dataset.key, amount: inp ? Number(inp.value) : 0 }); break; }
+    case "PAY_DOWN": { const inp = document.querySelector(`[data-paydown="${CSS.escape(b.dataset.key)}"]`); dispatch({ type: "PAY_DOWN", key: b.dataset.key, amount: b.dataset.all ? Number(b.dataset.all) : inp ? Number(inp.value) : 0 }); break; }
     case "ROLL": case "PASS": case "END_TURN": case "CHARITY": dispatch({ type: act }); break;
     case "PICK_DREAM": dispatch({ type: "PICK_DREAM", id: b.dataset.id }); break;
     case "SET_401K": dispatch({ type: "SET_401K", rate: Number(b.dataset.rate) }); break;

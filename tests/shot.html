@@ -5,8 +5,8 @@
 const q=new URLSearchParams(location.search);
 f.onload=()=>{const w=f.contentWindow,d=f.contentDocument; try{w.localStorage.clear()}catch{}
  setTimeout(()=>{ d.querySelector('[data-act="startLocal"]').click(); let k=0;
-  const step=()=>{ if(k++>=Number(q.get('n')||4)){ if(q.get('pane')) d.querySelector(`#rail [data-pane="${q.get('pane')}"]`).click(); if(q.get('stmt')) d.querySelector('[data-act="stmtMe"]').click(); return; }
-   const b=d.querySelector('[data-act="ROLL"]')||d.querySelector('[data-act="DEAL"][data-size="small"]')||d.querySelector('#stage [data-act="PASS"]')||d.querySelector('[data-act="END_TURN"]'); if(b) b.click(); setTimeout(step,500); };
+  const step=()=>{ if(k++>=Number(q.get('n')||4)){ if(q.get('pane')) d.querySelector(`#rail [data-pane="${q.get('pane')}"]`).click(); if(q.get('stmt')) { const m=d.querySelector('#dock [data-act="stmt"]')||d.querySelector('[data-act="stmtMe"]'); m.click(); } return; }
+   const b=(q.get('stop')&&d.querySelector('[data-act="END_TURN"]'))?null:d.querySelector('[data-act="ROLL"]')||d.querySelector('[data-act="DEAL"][data-size="small"]')||d.querySelector('#stage [data-act="PASS"]')||d.querySelector('[data-act="END_TURN"]'); if(b) b.click(); setTimeout(step,500); };
   step(); },400);
 };
 </script></body></html>

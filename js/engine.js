@@ -971,13 +971,13 @@ export function apply(prev, action) {
       const qty = Math.floor(Number(action.qty));
       if (!h || !(qty > 0) || qty > h.shares) throw new GameError("Choose a valid number of shares to sell.");
       const atMarket = card && card.type === "stock" && card.ticker === h.ticker;
-      const price = atMarket ? card.price : Math.max(1, Math.round(state.market[h.ticker].price * 0.8)); // quick sale outside a market card: 20% discount
+      const price = atMarket ? card.price : Math.max(1, Math.round(state.market[h.ticker].price * 0.9)); // quick sale outside a market card: 10% below market
       const proceeds = qty * price;
       const gain = qty * (price - h.cost);
       p.cash = r2(p.cash + proceeds); h.shares -= qty;
       if (!h.shares) p.stocks = p.stocks.filter((s) => s !== h);
       p.stats.sold += 1; p.stats.profit = r2(p.stats.profit + gain);
-      narrate(state, "sold", { name: p.name, asset: `${qty} ${h.ticker} shares${atMarket ? "" : " (quick sale, -20%)"}`, amt: money(proceeds) }, p.id);
+      narrate(state, "sold", { name: p.name, asset: `${qty} ${h.ticker} shares${atMarket ? "" : " (quick sale, 10% below market)"}`, amt: money(proceeds) }, p.id);
       if (gain > 0) badge(state, p, "flipper");
       if (!atMarket) tip(state, p, "quick_sale");
       checkProgress(state, p);
@@ -1008,10 +1008,26 @@ export function apply(prev, action) {
 
     case "PAY_DOWN": {
       if (state.phase === "roll" || state.phase === "choose") throw new GameError("Pay down debts after you roll.");
+      const amt = Math.floor(Number(action.amount)); // whole dollars
+      if (!(amt >= 1)) throw new GameError("Enter an amount of at least $1.");
+      // principal payment on a property / business loan ("prop:<id>")
+      if (String(action.key).startsWith("prop:")) {
+        const a = p.properties.find((x) => `prop:${x.id}` === action.key);
+        if (!a || !(a.loan > 0)) throw new GameError("That loan is already paid off.");
+        const pay = Math.min(amt, Math.ceil(a.loan));
+        if (pay > p.cash) throw new GameError(`You only have ${money(p.cash)} in cash.`);
+        const was = a.payment, wasCf = a.cashflow, ratio = (a.loan - pay) / a.loan;
+        p.cash = r2(p.cash - pay); a.loan = r2(Math.max(0, a.loan - pay)); p.stats.debtPaid += pay;
+        a.payment = a.loan > 0 ? Math.round(was * ratio) : 0;
+        a.cashflow = Math.round(a.noi - a.payment);
+        log(state, `🏦 ${p.name} paid ${money(pay)} of principal on the ${a.name} loan. ${a.loan > 0 ? `Balance ${money(a.loan)}, payment ${money(was)} → ${money(a.payment)}/mo` : "Loan paid off! No more payment"}, so cashflow ${money(wasCf)} → ${money(a.cashflow)}/mo.`, "good", p.id, "payoff");
+        tip(state, p, "pay_down");
+        badge(state, p, "debt_slayer");
+        checkProgress(state, p);
+        break;
+      }
       const d = p.debts[action.key];
       if (!d) throw new GameError("Debt not found.");
-      let amt = Math.floor(Number(action.amount) / 100) * 100;
-      if (!(amt >= 100)) throw new GameError("Pay at least $100.");
       if (amt >= d.balance) { action = { ...action, type: "PAYOFF" }; return apply(prev, action); }
       if (amt > p.cash) throw new GameError(`You only have ${money(p.cash)} in cash.`);
       const was = d.monthly, ratio = (d.balance - amt) / d.balance;
