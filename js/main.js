@@ -37,6 +37,7 @@ function toast(msg) {
 function show(screen) {
   $("lobby").hidden = screen !== "lobby";
   $("game").hidden = screen !== "game";
+  $("saveBtn").hidden = screen !== "game";
 }
 function newSeed() { return crypto.getRandomValues(new Uint32Array(2)).join("-"); }
 
@@ -117,7 +118,69 @@ function setGame(next) {
     }, stepMs);
   } else playSounds(fresh);
   if ($("stmtDialog").open && app.stmtFor) openStatement(app.stmtFor, true);
-  if (app.mode === "local" || app.mode === "host") store.set("cf.lastGame", { mode: app.mode, game: next, code: app.code });
+  if (app.mode === "local" || app.mode === "host") autosave();
+}
+
+// ------------------------------------------------------------------ saved games
+// Every move autosaves (local and hosted games). The last 8 games are kept in this browser, and any
+// save can be downloaded as a file to continue on another device.
+const MAX_SAVES = 8;
+const saves = () => { const list = store.get("cf.saves", []); return Array.isArray(list) ? list : []; };
+function snapshot() {
+  return { v: 1, id: app.game.seed, mode: app.mode, savedAt: Date.now(), code: app.code, timer: timer.limit,
+    lobby: app.mode === "host" ? app.lobby : null, game: app.game };
+}
+function autosave() {
+  if (!app.game) return;
+  const list = saves().filter((x) => x.id !== app.game.seed);
+  list.unshift(snapshot());
+  while (list.length > MAX_SAVES) list.pop();
+  try { localStorage.setItem("cf.saves", JSON.stringify(list)); }
+  catch { // storage full: keep fewer old games
+    try { localStorage.setItem("cf.saves", JSON.stringify(list.slice(0, 3))); } catch {}
+  }
+}
+function validSave(x) {
+  return x && x.game && Array.isArray(x.game.players) && x.game.players.length && x.game.seed && Array.isArray(x.game.board) && (x.mode === "local" || x.mode === "host");
+}
+function resumeSave(sv) {
+  if (!validSave(sv)) { toast("That save file doesn't look like a CashFlow game."); return; }
+  if (sv.mode === "host") { host(sv); return; }
+  app.mode = "local"; app.code = null; app.online = null;
+  app.localIds = new Set(sv.game.players.map((p) => p.id));
+  setGame(sv.game);
+  toast(`Welcome back! Round ${sv.game.round} 🎲`);
+}
+function downloadSave(sv) {
+  const blob = new Blob([JSON.stringify(sv)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `cashflow-${sv.game.players.map((p) => p.name).join("-").replace(/[^\w-]+/g, "")}-round${sv.game.round}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function ago(t) {
+  const m = Math.round((Date.now() - t) / 60000);
+  return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
+}
+function renderSaves() {
+  const list = saves();
+  const box = $("saves");
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  box.innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="font-size:1.2rem">📂 Saved games</h2><label class="btn btn--ghost btn--sm">⬆ Load from file<input type="file" accept=".json,application/json" id="loadFile" hidden /></label></div>
+    ${list.length ? `<div class="savelist">${list.map((sv, i) => {
+      const g = sv.game, done = !!g.winner, w = done && g.players.find((p) => p.id === g.winner);
+      return `<div class="saverow"><div><b>${sv.mode === "host" ? "🌐" : "🎮"} ${esc(g.players.map((p) => p.name).join(", "))}</b>
+        <small class="muted">${done ? `🏆 ${esc(w ? w.name : "")} won` : `Round ${g.round}`} · ${({ quick: "Quick", standard: "Standard", classic: "Classic" })[g.length] || "Standard"} · ${sv.mode === "host" ? `online room ${esc(sv.code || "")}` : "this device"} · saved ${ago(sv.savedAt)}</small></div>
+        <div class="row">${done ? "" : `<button class="btn btn--accent btn--sm" data-act="resumeSave" data-i="${i}">Resume</button>`}<button class="btn btn--ghost btn--sm" data-act="downloadSave" data-i="${i}" title="Download a save file">⬇</button><button class="btn btn--ghost btn--sm" data-act="deleteSave" data-i="${i}" title="Delete">🗑</button></div></div>`;
+    }).join("")}</div>` : `<p class="muted" style="margin:0">No saved games yet. Games save automatically after every move.</p>`}`;
+  box.hidden = false;
+  $("loadFile").onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try { const sv = JSON.parse(await file.text()); if (!validSave(sv)) throw new Error(); sv.savedAt = Date.now(); resumeSave(sv); }
+    catch { toast("Couldn't read that file. Pick a CashFlow save (.json)."); }
+  };
 }
 
 // ------------------------------------------------------------------ actions
@@ -156,20 +219,28 @@ async function startLocal() {
 }
 
 // ------------------------------------------------------------------ lobby: host
-async function host() {
-  const name = $("hostName").value.trim() || "Host";
-  store.set("cf.name", name);
+async function host(saved = null) {
+  const name = saved ? (saved.lobby || []).concat([{ id: "h", name: "Host" }]).find((p) => p.id === "h").name : $("hostName").value.trim() || "Host";
+  if (!saved) store.set("cf.name", name);
   const box = $("hostLobby");
-  box.hidden = false; box.innerHTML = `<p class="status">Creating room…</p>`;
+  box.hidden = false; box.innerHTML = `<p class="status">${saved ? "Reopening your room…" : "Creating room…"}</p>`;
   try {
     app.mode = "host"; app.viewerId = "h"; app.localIds = new Set(["h"]); app.online = new Set(["h"]);
-    app.lobby = [{ id: "h", name, key: clientKey }];
-    app.net = await hostRoom({
+    app.lobby = saved && saved.lobby ? saved.lobby : saved ? saved.game.players.map((p) => ({ id: p.id, name: p.name, key: p.id === "h" ? clientKey : "" })) : [{ id: "h", name, key: clientKey }];
+    const handlers = {
       onHello(conn, msg) {
         const key = String(msg.key || "");
         if (app.game) { // reconnecting to a game in progress
-          const seat = app.lobby.find((p) => p.key === key && p.id !== "h");
-          if (!seat) { conn.send({ t: "error", msg: "This game already started." }); return null; }
+          // same browser tab → same seat; otherwise match an offline seat by name (e.g. after a resumed game)
+          const nm = String(msg.name || "").trim().toLowerCase();
+          let seat = app.lobby.find((p) => p.key === key && p.id !== "h");
+          if (!seat) seat = app.lobby.find((p) => p.id !== "h" && !app.online.has(p.id) && p.name.trim().toLowerCase() === nm);
+          if (!seat) {
+            const open = app.lobby.filter((p) => p.id !== "h" && !app.online.has(p.id)).map((p) => p.name);
+            conn.send({ t: "error", msg: open.length ? `This game is in progress. Join with the name of an open seat: ${open.join(", ")}.` : "This game already started." });
+            return null;
+          }
+          seat.key = key;
           app.online.add(seat.id); setTimeout(() => { armTimer(); broadcastState(); renderGame(app); }, 50);
           toast(`${seat.name} is back 👋`);
           return seat.id;
@@ -196,8 +267,16 @@ async function host() {
         if (app.game) { armTimer(); renderGame(app); broadcastState(); } else renderHostLobby();
       },
       onError(e) { console.warn(e); },
-    });
+    };
+    try { app.net = await hostRoom(handlers, ...(saved && saved.code ? [saved.code] : [])); }
+    catch (e) { if (!saved) throw e; app.net = await hostRoom(handlers); } // old code taken: open a new one
     app.code = app.net.code;
+    if (saved) {
+      timer.limit = saved.timer || 0;
+      setGame(saved.game);
+      toast(app.code === saved.code ? `Room ${app.code} is open again. Friends rejoin with the same code 🔑` : `New room code: ${app.code}. Share it so friends can rejoin.`);
+      return;
+    }
     renderHostLobby();
   } catch (e) {
     box.innerHTML = `<p class="status">${e.message}</p>`;
@@ -267,6 +346,10 @@ document.addEventListener("click", (e) => {
     case "startLocal": startLocal(); break;
     case "host": if (!app.net) host(); break;
     case "startHost": startHost(); break;
+    case "resumeSave": resumeSave(saves()[Number(b.dataset.i)]); break;
+    case "downloadSave": downloadSave(saves()[Number(b.dataset.i)]); break;
+    case "deleteSave": { const l = saves(); const sv = l[Number(b.dataset.i)]; if (sv && confirm(`Delete the saved game with ${sv.game.players.map((p) => p.name).join(", ")}?`)) { l.splice(Number(b.dataset.i), 1); store.set("cf.saves", l); renderSaves(); } break; }
+    case "saveFile": if (app.game) downloadSave(snapshot()); break;
     case "join": join(); break;
     case "copyLink": navigator.clipboard && navigator.clipboard.writeText(b.dataset.link).then(() => toast("Invite link copied 📋"), () => toast(b.dataset.link)); break;
     case "home": if (app.net) app.net.close(); location.href = location.pathname; break;
@@ -293,12 +376,8 @@ document.querySelector('[data-act="mute"]').textContent = isMuted() ? "🔇" : "
 $("hostName").value = $("joinName").value = store.get("cf.name", "");
 const params = new URLSearchParams(location.search);
 if (params.get("join")) { $("joinCode").value = params.get("join"); $("joinName").focus(); }
+// migrate the old single "last game" save into the saved-games list
 const last = store.get("cf.lastGame", null);
-if (last && last.mode === "local" && last.game && !last.game.winner && !params.get("join")) {
-  // offer to resume a pass-and-play game
-  const bar = document.createElement("div");
-  bar.className = "panel"; bar.style.marginBottom = "16px";
-  bar.innerHTML = `<div class="row" style="justify-content:space-between"><span>You have an unfinished game (round ${last.game.round}, ${last.game.players.map((p) => p.name).join(", ")}).</span><button class="btn btn--accent btn--sm" id="resume">Resume</button></div>`;
-  $("lobby").prepend(bar);
-  $("resume").onclick = () => { app.mode = "local"; app.localIds = new Set(last.game.players.map((p) => p.id)); setGame(last.game); };
-}
+if (last && last.game && !saves().some((x) => x.id === last.game.seed)) { store.set("cf.saves", [{ v: 1, id: last.game.seed, mode: last.mode, savedAt: Date.now(), code: last.code, timer: 0, lobby: null, game: last.game }, ...saves()].slice(0, MAX_SAVES)); }
+try { localStorage.removeItem("cf.lastGame"); } catch {}
+if (!params.get("join")) renderSaves();

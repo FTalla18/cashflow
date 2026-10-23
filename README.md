@@ -33,7 +33,8 @@ A multiplayer, browser-based remake of Freeman Talla's CashFlow game. Each playe
   - Raises come at annual reviews.
   - One-time money tips when things happen (first stock, negative cashflow, a layoff…).
   - Badges, plus an end-of-game report card with a lesson for each player.
-  - **Ask Cash 💬**: a built-in coach that reads your statement and suggests your next best moves. An optional Botpress AI chat can be added (see [botpress/](botpress/)).
+  - **Ask Cash 💬**: a built-in coach that reads your statement and suggests your next best moves. Plus a Botpress AI chat with Cash (see [botpress/](botpress/)).
+- **Saved games:** every move autosaves. The last 8 games are listed on the home screen, and online games resume with the same room code (friends rejoin by name). Download or load save files to switch devices.
 - **Online turn timer:** the host can set 60s, 90s or 3 minutes. Disconnected players get auto-skipped.
 - **Sound effects** synthesized in the browser (with a mute toggle), plus token-hop animation.
 

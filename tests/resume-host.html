@@ -1,0 +1,37 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;display:flex">
+<iframe id="A" src="../index.html?key=host-device" style="width:720px;height:900px;border:0"></iframe>
+<iframe id="B" style="width:720px;height:900px;border:0"></iframe>
+<script>
+// host + guest play, host reloads and resumes the room, guest rejoins (new tab = new key, matched by name)
+const sleep=ms=>new Promise(r=>setTimeout(r,ms)); const out=[]; const errs=[];
+const load=(f,src)=>new Promise(r=>{f.onload=()=>{f.contentWindow.addEventListener('error',e=>errs.push(f.id+': '+e.message));r();}; if(src) f.src=src; else f.contentWindow.location.reload();});
+(async()=>{
+  await sleep(1200); let a=A.contentDocument; try{A.contentWindow.localStorage.clear()}catch{}
+  await load(A); a=A.contentDocument; await sleep(500);
+  a.getElementById('hostName').value='Freeman'; a.querySelector('[data-act="host"]').click();
+  let code=null; for(let i=0;i<40&&!code;i++){ await sleep(500); const c=a.querySelector('.code'); if(c) code=c.textContent.trim(); }
+  await load(B, `../index.html?key=guest-1&join=${code}`); let b=B.contentDocument;
+  b.getElementById('joinName').value='Jordan'; b.querySelector('[data-act="join"]').click();
+  for(let i=0;i<30;i++){ await sleep(500); if(/Players \(2/.test(a.getElementById('hostLobby').textContent)) break; }
+  a.querySelector('[data-act="startHost"]').click(); await sleep(1500);
+  const seq1=JSON.parse(A.contentWindow.localStorage.getItem('cf.saves'))[0].game.seq;
+  out.push('room '+code+', guest in game: '+!b.getElementById('game').hidden);
+  // host reloads (browser crash / closed tab)
+  await load(A); a=A.contentDocument; await sleep(800);
+  out.push('saved list: '+a.getElementById('saves').textContent.replace(/\s+/g,' ').slice(0,130));
+  a.querySelector('[data-act="resumeSave"]').click();
+  let top=''; for(let i=0;i<30;i++){ await sleep(500); top=a.getElementById('topInfo').textContent; if(/Room/.test(top)) break; }
+  out.push('host top after resume: '+top.replace(/\s+/g,' '));
+  const code2=(top.match(/Room\s*([A-Z0-9]{5})/)||[])[1];
+  // guest rejoins from a fresh tab (different key) with the same name
+  await load(B, `../index.html?key=guest-2&join=${code2}`); b=B.contentDocument;
+  b.getElementById('joinName').value='Jordan'; b.querySelector('[data-act="join"]').click();
+  for(let i=0;i<30;i++){ await sleep(500); if(!b.getElementById('game').hidden) break; }
+  out.push('guest back in game: '+!b.getElementById('game').hidden);
+  out.push('same game: '+(JSON.parse(A.contentWindow.localStorage.getItem('cf.saves'))[0].game.seq>=seq1));
+  out.push('feeds identical: '+(a.getElementById('log').textContent===b.getElementById('log').textContent));
+  out.push('host players: '+a.getElementById('players').textContent.replace(/\s+/g,' ').slice(0,120));
+  out.unshift('errors: '+JSON.stringify(errs));
+  fetch('/log',{method:'POST',body:out.join('\n')});
+})();
+</script></body></html>

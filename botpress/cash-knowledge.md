@@ -67,6 +67,9 @@ A multiplayer board game (1–6 players, same device or online with a room code)
 ## Online play
 The host creates a room and shares the code or link. The host can set a turn timer (60s, 90s or 3 minutes). When time runs out the game plays it safe for you: roll, take a small deal, pass, end the turn. Disconnected players are auto-skipped after 20 seconds. Rejoin with the same code on the same browser tab to get your seat back.
 
+## Saving and resuming
+Every move saves automatically in the browser. The home screen lists the last 8 games under "Saved games" with Resume, download (⬇) and delete (🗑). Resuming an online game reopens the same room code (or gives a new one if it's taken). Friends rejoin with the code and the SAME name they used before. The 💾 button in the top bar downloads a save file, and "Load from file" on the home screen continues it on any device.
+
 ## Real-life money basics (for questions outside the rules)
 - Emergency fund: 3–6 months of expenses in a high-yield savings account.
 - 50/30/20 budget: 50% needs, 30% wants, 20% saving/debt payoff.

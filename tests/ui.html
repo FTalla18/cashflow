@@ -14,13 +14,13 @@ f.onload=()=>{const w=f.contentWindow,d=f.contentDocument;
   if(clicks>=Number(new URLSearchParams(location.search).get('n')||24)){ finish(); return; }
   const t=d.getElementById('turn'); let b=t.querySelector('[data-act="ROLL"]')||t.querySelector('[data-act="DEAL"][data-size="small"]')||t.querySelector('[data-act="BUY"]:not([disabled])')||t.querySelector('[data-act="CHARITY"]:not([disabled])')||t.querySelector('[data-act="PASS"]')||t.querySelector('[data-act="END_TURN"]');
   if(clicks===1){ const dr=t.querySelectorAll('[data-act="PICK_DREAM"]'); if(dr.length) dr[dr.length-1].click(); const k=d.querySelector('#me [data-act="SET_401K"][data-rate="0.06"]:not([disabled])'); if(k) k.click(); }
-  if(clicks===6){ d.querySelector('[data-act="coach"]').click(); setTimeout(()=>d.getElementById('coachDialog').close(),300); }
+  if(clicks===6){ d.querySelector('[data-act="coach"]').click(); const c=d.getElementById('chatCash'); window.__chat=!!c; if(c){ c.click(); setTimeout(()=>{ window.__bp=!!w.botpress; },6000);} setTimeout(()=>d.getElementById('coachDialog').open&&d.getElementById('coachDialog').close(),300); }
   if(b){ b.click(); clicks++; }
   setTimeout(step, 1700);
  }
  function finish(){
-  const g=JSON.parse(w.localStorage.getItem('cf.lastGame')||'null');
-  const lines=[`errors: ${JSON.stringify(errs)}`,`clicks: ${clicks}`,`round: ${g&&g.game.round}`,`ticker rows: ${d.querySelectorAll('.tick').length}`,`fast panel: ${!d.getElementById('fast').hidden}`,`dream: ${g&&g.game.players[0].dream.name}`,`coach: ${d.getElementById('coachBody').textContent.replace(/\s+/g,' ').slice(0,200)}`, ...(g?g.game.log.slice(-14).map(l=>`[${l.key||l.kind}] ${l.text}`):[])];
+  const g=(JSON.parse(w.localStorage.getItem('cf.saves')||'[]'))[0];
+  const lines=[`errors: ${JSON.stringify(errs)}`,`clicks: ${clicks}`,`round: ${g&&g.game.round}`,`ticker rows: ${d.querySelectorAll('.tick').length}`,`fast panel: ${!d.getElementById('fast').hidden}`,`dream: ${g&&g.game.players[0].dream.name}`,`chat button: ${window.__chat}`,`botpress loaded: ${window.__bp}`,`saves: ${(JSON.parse(w.localStorage.getItem('cf.saves')||'[]')).length}`,`coach: ${d.getElementById('coachBody').textContent.replace(/\s+/g,' ').slice(0,200)}`, ...(g?g.game.log.slice(-14).map(l=>`[${l.key||l.kind}] ${l.text}`):[])];
   if(new URLSearchParams(location.search).get('stmt')) d.querySelector('#me [data-act="stmt"]').click();
   fetch('/log',{method:'POST',body:lines.join('\n')});
  }
