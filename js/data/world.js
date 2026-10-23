@@ -144,6 +144,10 @@ export const TIPS = {
   first_property: "💡 Money tip: real estate pays you rent AND can grow in value. Always check the cashflow after the mortgage, not just the price.",
   business: "💡 Money tip: owning a business means it can pay you even when you're not working. That's the passive-income dream.",
   baby: "💡 Money tip: kids are expensive (childcare alone can be $1,000+/month), but there's a Child Tax Credit of $2,200 per kid.",
+  credit_late: "💡 Money tip: running out of cash counts as a missed payment. Payment history is 35% of a real FICO score, and one late payment can drop it 60–100 points and stay on your report for 7 years.",
+  credit_util: "💡 Money tip: credit utilization (card balance ÷ credit limit) is about 30% of your score. Under 30% is good, under 10% is elite. Paying the card off is the fastest credit glow-up.",
+  credit_inquiry: "💡 Money tip: applying for a loan triggers a hard inquiry, a small, temporary dip in your score. Don't apply for credit you don't need.",
+  credit_rates: "💡 Money tip: your credit score just changed your interest rate. On a $300k mortgage, 1% higher costs about $200 more per month, or $70k+ over 30 years.",
   negative_paycheck: "💡 Money tip: when expenses beat income, debt grows fast. Cut a big expense or pay off a debt to stop the bleeding.",
 };
 
@@ -158,5 +162,6 @@ export const BADGES = {
   comeback: { emoji: "💪", label: "Comeback kid (hired after a layoff)" },
   halfway: { emoji: "🧗", label: "Halfway out of the rat race" },
   escaped: { emoji: "🚀", label: "Escaped the rat race" },
+  credit_star: { emoji: "🌟", label: "Exceptional credit (800+)" },
   flipper: { emoji: "💰", label: "Sold an asset for a profit" },
 };

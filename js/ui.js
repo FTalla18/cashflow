@@ -1,11 +1,20 @@
 // Rendering: turns the game state into HTML. All buttons carry data-act="..." and are handled in main.js.
-import { statement, tileInfo, current, actor, money, report, TILES, LENGTHS, K401_CHOICES, FAST_WIN_CASHFLOW, DREAMS, FAST_BOARD, BADGES } from "./engine.js";
+import { statement, tileInfo, current, actor, money, report, creditScore, creditTier, loanTerms, utilization, TILES, LENGTHS, K401_CHOICES, FAST_WIN_CASHFLOW, DREAMS, FAST_BOARD, BADGES } from "./engine.js";
 import { FILING_LABEL } from "./tax.js";
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const $ = (id) => document.getElementById(id);
 const pct = (x) => `${Math.round(x * 100)}%`;
 const cls = (n) => (n >= 0 ? "pos" : "neg");
+/** Credit score gauge: score, tier, and a mini history line. */
+function creditHTML(p, big = false) {
+  if (!p.credit) return "";
+  const sc = creditScore(p), t = creditTier(sc), u = utilization(p);
+  const pos = ((sc - 300) / 550) * 100;
+  return `<div class="credit ${big ? "credit--big" : ""}" style="--cc:${t.color}"><div class="row" style="justify-content:space-between"><span>💳 Credit score <b class="credit__score">${sc}</b> <span class="credit__tier">${t.label}</span></span>${sparkline(p.credit.hist.length > 1 ? p.credit.hist : [sc, sc], 60, 18)}</div>
+    <div class="credit__bar"><i style="left:${pos.toFixed(1)}%"></i></div>
+    <div class="credit__meta"><span>Card use ${Math.round(u * 100)}% of ${money(p.credit.limit)}</span><span>✅ ${p.credit.onTime} on-time</span><span>${p.credit.late ? `⚠️ ${p.credit.late} missed` : "0 missed"}</span>${big ? `<span>Loan rates: ${t.mortgage === 0 ? "standard" : `${t.mortgage > 0 ? "+" : ""}${(t.mortgage * 100).toFixed(2)}% mortgages, ${t.personal > 0 ? "+" : ""}${(t.personal * 100).toFixed(0)}% bank loans`}</span>` : ""}</div></div>`;
+}
 const badgeIcons = (p) => p.badges.map((b) => `<span title="${esc(BADGES[b].label)}">${BADGES[b].emoji}</span>`).join("");
 
 /** app = { game, mode, localIds:Set, viewerId, online:Set|null, code, timeLeft:()=>seconds|null } */
@@ -160,13 +169,16 @@ function cardHTML(g, p, c = g.card, intro = "") {
       <div class="actions"><button class="btn btn--accent" data-act="BUY" ${max < 1 ? "disabled" : ""}>Buy</button>${own && !intro ? `<button class="btn btn--pink" data-act="SELL_STOCK" data-ticker="${esc(c.ticker)}">Sell shares @ ${money(c.price)}</button>` : ""}<button class="btn btn--ghost" data-act="PASS">Pass</button></div></div>`;
   }
   if (c.type === "property") {
-    const roi = c.down > 0 ? (c.cashflow * 12) / c.down : 0;
+    const lt = loanTerms(p, c);
+    const roi = c.down > 0 ? (lt.cashflow * 12) / c.down : 0;
     const short = c.down > p.cash;
+    const diff = Math.abs(lt.rate - c.rate) > 1e-6;
     return `<div class="card">${intro}<p class="card__kicker">${c.size === "small" ? "Small deal" : "Big deal"} · ${c.category === "biz" ? "🏪 Business" : "🏠 Real estate"}</p><h4>${esc(c.name)}</h4><p class="story">"${esc(c.story)}"</p>
-      <dl class="kv"><dt>Price</dt><dd>${money(c.price)}</dd><dt>Down payment</dt><dd>${money(c.down)}</dd><dt>Loan</dt><dd>${money(c.loan)} @ ${(c.rate * 100).toFixed(1)}%</dd>
-      <dt>Income after operating costs</dt><dd>${money(c.noi)}/mo</dd><dt>Loan payment</dt><dd>−${money(c.payment)}/mo</dd>
-      <dt><b>Cashflow</b></dt><dd class="${cls(c.cashflow)}">${money(c.cashflow)}/mo</dd><dt>Cash-on-cash return</dt><dd class="${cls(roi)}">${(roi * 100).toFixed(1)}%/yr</dd></dl>
-      ${c.cashflow < 0 ? `<p class="neg" style="margin:8px 0 0">⚠️ Negative cashflow: this would cost you money every month.</p>` : ""}
+      <dl class="kv"><dt>Price</dt><dd>${money(c.price)}</dd><dt>Down payment</dt><dd>${money(c.down)}</dd><dt>Loan</dt><dd>${money(c.loan)} @ ${diff ? `<s class="muted">${(c.rate * 100).toFixed(2)}%</s> ` : ""}<b class="${diff ? (lt.rate < c.rate ? "pos" : "neg") : ""}">${(lt.rate * 100).toFixed(2)}%</b></dd>
+      ${diff ? `<dt>Why your rate</dt><dd style="color:${lt.tier.color}">💳 ${lt.score} · ${lt.tier.label} credit</dd>` : ""}
+      <dt>Income after operating costs</dt><dd>${money(c.noi)}/mo</dd><dt>Loan payment</dt><dd>−${money(lt.payment)}/mo</dd>
+      <dt><b>Cashflow</b></dt><dd class="${cls(lt.cashflow)}">${money(lt.cashflow)}/mo</dd><dt>Cash-on-cash return</dt><dd class="${cls(roi)}">${(roi * 100).toFixed(1)}%/yr</dd></dl>
+      ${lt.cashflow < 0 ? `<p class="neg" style="margin:8px 0 0">⚠️ Negative cashflow: this would cost you money every month.</p>` : ""}
       ${short ? `<p class="muted" style="margin:8px 0 0">You're ${money(c.down - p.cash)} short.${intro ? "" : " Borrow from the bank or sell something in 💼 Manage money."}</p>` : ""}
       <div class="actions" style="margin-top:10px"><button class="btn btn--accent" data-act="BUY" ${short ? "disabled" : ""}>Buy</button>${short && !intro ? `<button class="btn btn--ghost" data-act="stmt" data-id="${p.id}">💼 Raise cash</button>` : ""}<button class="btn btn--ghost" data-act="PASS">Pass</button></div></div>`;
   }
@@ -205,13 +217,14 @@ function reportCard(g) {
   const w = g.players.find((x) => x.id === g.winner);
   const rows = report(g);
   const lesson = (r) => r.winner ? "Assets over everything. That's the play." :
+    r.late >= 3 ? `${r.late} missed payments tanked your credit to ${r.credit}. Keep a cash cushion so bills never bounce.` :
     r.passive <= 0 ? "No passive income yet. Next game, buy your first cash-flowing asset early." :
     r.doodads > r.debtPaid && r.doodads > 5000 ? `Doodads cost ${money(r.doodads)}. That's a down payment on a rental!` :
     r.progress >= 0.5 ? "Over halfway out. A couple more good deals and you're free." :
     "Every asset counts. Keep stacking cashflow.";
   return `<div class="winner"><h3>🏆 ${esc(w.name)} wins!</h3><p class="muted">Round ${g.round}. ${g.fastTrack ? "Classic mode: escaped the rat race and won on the Fast Track." : `Passive income covered ${pct(g.goal)} of living expenses.`}</p></div>
     <div class="report"><h4>📋 Report card</h4>${rows.map((r) => `<div class="rc" style="--pc:${r.color}"><div class="row" style="justify-content:space-between"><b><span class="dot" style="display:inline-block;width:10px;height:10px"></span> ${esc(r.name)}${r.winner ? " 🏆" : r.fast ? " 🚀" : ""}</b><span class="muted">${pct(r.progress)} free</span></div>
-      <div class="rc__stats"><span>Net worth <b class="${cls(r.netWorth)}">${money(r.netWorth)}</b></span><span>Passive <b class="pos">${money(r.passive)}</b>/check</span><span>Assets <b>${r.assets}</b></span><span>Debt paid <b>${money(r.debtPaid)}</b></span><span>Doodads <b class="neg">${money(r.doodads)}</b></span><span>Trading P/L <b class="${cls(r.profit)}">${money(r.profit)}</b></span>${r.best ? `<span>Best deal <b>${esc(r.best.name)}</b> (${money(r.best.cashflow)}/mo)</span>` : ""}</div>
+      <div class="rc__stats"><span>Net worth <b class="${cls(r.netWorth)}">${money(r.netWorth)}</b></span><span>Passive <b class="pos">${money(r.passive)}</b>/check</span><span>Assets <b>${r.assets}</b></span><span>Debt paid <b>${money(r.debtPaid)}</b></span><span>Doodads <b class="neg">${money(r.doodads)}</b></span><span>Credit <b style="color:${creditTier(r.credit).color}">${r.credit}</b>${r.late ? ` (${r.late} missed)` : ""}</span><span>Trading P/L <b class="${cls(r.profit)}">${money(r.profit)}</b></span>${r.best ? `<span>Best deal <b>${esc(r.best.name)}</b> (${money(r.best.cashflow)}/mo)</span>` : ""}</div>
       <div class="rc__badges">${r.badges.map((b) => `<span title="${esc(BADGES[b].label)}">${BADGES[b].emoji} ${esc(BADGES[b].label)}</span>`).join("") || `<span class="muted">No badges yet</span>`}</div>
       <p class="rc__lesson">💡 ${esc(lesson(r))}</p></div>`).join("")}</div>
     <div class="actions"><button class="btn btn--accent" data-act="stmt" data-id="${w.id}">See ${esc(w.name)}'s statement</button><button class="btn btn--ghost" data-act="home">New game</button></div>`;
@@ -233,7 +246,7 @@ function renderMe(app) {
   $("me").innerHTML = `<div class="me__top"><h3 style="margin:0">${app.mode === "local" ? `${esc(p.name)}'s money` : "Your money"} <span class="badges">${badgeIcons(p)}</span></h3><button class="btn btn--ghost btn--sm" data-act="stmt" data-id="${p.id}">Full statement</button></div>
     <p class="muted" style="margin:4px 0 0"><span class="me__job">${esc(p.job.employed ? p.job.title : `Between jobs (was ${p.job.title})`)}</span> · ${esc(p.life.city)}, ${esc(p.life.state)}</p>
     <div class="stats"><div class="stat"><small>Cash</small><b>${money(p.cash)}</b></div><div class="stat"><small>Payday</small><b class="${cls(s.netPay)}">${money(s.netPay)}</b></div><div class="stat"><small>Net worth</small><b class="${cls(s.netWorth)}">${money(s.netWorth)}</b></div></div>
-    ${fast}${k401}`;
+    ${fast}${p.fast ? "" : creditHTML(p)}${k401}`;
 }
 
 function renderPlayers(app) {
@@ -243,7 +256,7 @@ function renderPlayers(app) {
     const off = app.online && !app.online.has(p.id);
     const prog = p.fast ? Math.min(1, p.cash / p.dream.cost) : s.progress;
     return `<button class="prow ${p.id === cur.id ? "is-turn" : ""}" style="--pc:${p.color}" data-act="stmt" data-id="${p.id}">
-      <span class="dot"></span><span><b>${esc(p.name)}</b> <span class="badges">${badgeIcons(p)}</span> ${off ? `<span class="badge badge--off">offline</span>` : ""}${p.skip ? `<span class="badge">skips a turn</span>` : ""}${p.fast ? `<span class="badge badge--fast">🚀 Fast Track</span>` : ""}<small>${esc(p.job.employed ? p.job.title : "Between jobs")} · cash ${money(p.cash)}</small><span class="progress"><span style="width:${pct(prog)}"></span></span></span><span class="badge">${p.fast ? `${p.dream.icon} ${pct(prog)}` : pct(s.progress)}</span></button>`;
+      <span class="dot"></span><span><b>${esc(p.name)}</b> <span class="badges">${badgeIcons(p)}</span> ${off ? `<span class="badge badge--off">offline</span>` : ""}${p.skip ? `<span class="badge">skips a turn</span>` : ""}${p.fast ? `<span class="badge badge--fast">🚀 Fast Track</span>` : ""}<small>${esc(p.job.employed ? p.job.title : "Between jobs")} · cash ${money(p.cash)}${p.credit ? ` · 💳 <span style="color:${creditTier(creditScore(p)).color}">${creditScore(p)}</span>` : ""}</small><span class="progress"><span style="width:${pct(prog)}"></span></span></span><span class="badge">${p.fast ? `${p.dream.icon} ${pct(prog)}` : pct(s.progress)}</span></button>`;
   }).join("")}</div>`;
 }
 
@@ -268,6 +281,7 @@ export function statementHTML(g, p, canManage) {
     <div class="stat"><small>Cash on hand</small><b>${money(p.cash, true)}</b></div></div>
   ${p.fast ? `<div class="escape"><div class="row"><span>🚀 <b>Fast Track</b>: CashFlow Day pays ${money(p.fast.base + p.fast.added)}. Dream ${p.dream.icon} ${esc(p.dream.name)}: ${money(p.dream.cost)}</span><span>${money(p.fast.added)} / ${money(FAST_WIN_CASHFLOW)} added</span></div><div class="progress"><span style="width:${pct(Math.min(1, p.cash / p.dream.cost))}"></span></div></div>` :
     `<div class="escape"><div class="row"><span>🐀 <b>Rat race escape</b>: passive income vs ${g.goal < 1 ? `${Math.round(g.goal * 100)}% of ` : ""}living expenses</span><span><b class="pos">${money(s.passive, true)}</b> / ${money(s.target, true)}</span></div><div class="progress"><span style="width:${pct(s.progress)}"></span></div></div>`}
+  ${creditHTML(p, true)}
   <div class="fs">
     <section><h4>Income</h4><table>${s.income.map((i) => line(i.label, i.amount)).join("") || `<tr><td class="muted">No income right now</td><td></td></tr>`}<tr class="total"><td>Total income</td><td>${money(s.totalIncome, true)}</td></tr>
       ${s.notes.map((n) => `<tr><td class="muted">+ ${esc(n.label)}</td><td class="pos">${money(n.amount, true)}</td></tr>`).join("")}</table></section>
@@ -285,7 +299,7 @@ export function statementHTML(g, p, canManage) {
       ${p.fast ? p.fast.ventures.map((v) => `<tr><td>🏢 ${esc(v.name)} <small class="pos">+${money(v.cashflow)}/mo</small></td><td></td></tr>`).join("") : ""}
       <tr class="total"><td>Net worth</td><td class="${cls(s.netWorth)}">${money(s.netWorth)}</td></tr></table></section>
     <section><h4>Liabilities</h4><table>${s.liabilities.map((l) => line(l.label, l.value)).join("") || `<tr><td class="muted">Debt-free 🎉</td><td></td></tr>`}</table>
-      ${canManage ? `<div class="loanbox"><input class="inp" type="number" min="1000" step="1000" value="5000" id="loanAmt" aria-label="Loan amount" /><button class="btn btn--ghost btn--sm" data-act="BORROW">Borrow</button>${bank ? `<button class="btn btn--ghost btn--sm" data-act="REPAY">Repay</button>` : ""}</div><p class="muted" style="font-size:.8rem;margin:6px 0 0">Bank loans: $1,000 steps at ${(g.economy.personal * 100).toFixed(0)}% for 5 years.</p>` : ""}
+      ${canManage ? `<div class="loanbox"><input class="inp" type="number" min="1000" step="1000" value="5000" id="loanAmt" aria-label="Loan amount" /><button class="btn btn--ghost btn--sm" data-act="BORROW">Borrow</button>${bank ? `<button class="btn btn--ghost btn--sm" data-act="REPAY">Repay</button>` : ""}</div><p class="muted" style="font-size:.8rem;margin:6px 0 0">Bank loans: $1,000 steps at ${((g.economy.personal + creditTier(creditScore(p)).personal) * 100).toFixed(1)}% for 5 years (your credit: ${creditTier(creditScore(p)).label.toLowerCase()}). Each new loan is a hard inquiry (−6 points).</p>` : ""}
     </section>
   </div>`;
 }

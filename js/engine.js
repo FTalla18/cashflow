@@ -195,6 +195,8 @@ function makePlayer(rng, { id, name }, index, econ, taxYear) {
 
   // Credit cards & retail debt
   const ccBal = nice(annual * rng.tri(0, 0.05, 0.2), 50);
+  const ccLimit = nice(Math.max(2000, ccBal * rng.tri(1.2, 2.5, 6), annual * rng.tri(0.05, 0.15, 0.3)), 500);
+  const creditBase = Math.round(rng.tri(560, 680, 790) - (employed ? 0 : 20));
   if (ccBal > 0) debts.credit = { label: "Credit cards", balance: ccBal, monthly: Math.max(35, Math.round(ccBal * 0.03)), rate: econ.credit };
   if (rng.chance(0.4)) { const b = nice(rng.tri(400, 1500, 4500), 50); debts.retail = { label: "Retail / BNPL debt", balance: b, monthly: Math.max(25, Math.round(b * 0.05)), rate: 0.3 }; }
 
@@ -221,11 +223,57 @@ function makePlayer(rng, { id, name }, index, econ, taxYear) {
     hsaBalance: hsaAnnual ? nice(hsaAnnual * rng.tri(0.2, 1, 3), 50) : 0,
     stocks: [], properties: [], debts, living, nextId: 1, paychecks: 0,
     dream: DREAMS.find((d) => d.id === dreamOptions[0]), dreamOptions, fast: null,
+    credit: { base: creditBase, limit: ccLimit, hist: [], onTime: 0, late: 0 },
     badges: [], tips: [], stats: { bought: 0, sold: 0, profit: 0, debtPaid: 0, doodads: 0, charity: 0, interestBorrowed: 0, best: null, layoffs: 0, raises: 0 },
   };
   const s = statement(p);
+  p.credit.hist.push(creditScore(p));
   p.cash = Math.max(300, nice(employed ? Math.abs(s.netPay) * rng.tri(0.5, 1.5, 4) : rng.tri(1000, 3000, 8000), 50));
   return p;
+}
+
+// ---------------------------------------------------------------- credit score (simplified FICO: 300–850)
+// Score = base (payment history, inquiries, account history) + credit-card utilization (balance ÷ limit), computed live.
+export const CREDIT_TIERS = [
+  { min: 800, label: "Exceptional", color: "#3cf5a0", mortgage: -0.005, personal: -0.04, limit: 1.25 },
+  { min: 740, label: "Very good", color: "#9be564", mortgage: -0.0025, personal: -0.02, limit: 1.1 },
+  { min: 670, label: "Good", color: "#ffd23f", mortgage: 0, personal: 0, limit: 1 },
+  { min: 580, label: "Fair", color: "#ff9f43", mortgage: 0.01, personal: 0.05, limit: 0.75 },
+  { min: 300, label: "Poor", color: "#ff5d6c", mortgage: 0.025, personal: 0.1, limit: 0.5 },
+];
+export function utilization(p) {
+  if (!p.credit || !p.credit.limit) return 0;
+  return (p.debts.credit ? p.debts.credit.balance : 0) / p.credit.limit;
+}
+function utilPoints(u) { return u < 0.1 ? 20 : u < 0.3 ? 5 : u < 0.5 ? -15 : u < 0.8 ? -35 : -55; }
+export function creditScore(p) {
+  if (!p.credit) return 680;
+  return clamp(Math.round(p.credit.base + utilPoints(utilization(p))), 300, 850);
+}
+export function creditTier(score) { return CREDIT_TIERS.find((t) => score >= t.min); }
+
+/** The loan a specific player would get on a property/business card (rate depends on their credit). */
+export function loanTerms(p, card) {
+  const t = creditTier(creditScore(p));
+  const rate = r2((card.rate + (card.category === "biz" ? t.personal / 2 : t.mortgage)) * 10000) / 10000;
+  const years = card.years || (card.category === "biz" ? 10 : 30);
+  const payment = Math.round(amortize(card.loan, rate, years));
+  return { rate, payment, cashflow: nice(card.noi - payment, 10), tier: t, score: creditScore(p) };
+}
+
+function creditChange(state, p, delta, why) {
+  if (!p.credit) return;
+  const before = creditScore(p);
+  p.credit.base = clamp(p.credit.base + delta, 250, 870);
+  const after = creditScore(p);
+  creditMark(p);
+  if (why && after !== before) log(state, `${after > before ? "📈" : "📉"} ${p.name}'s credit score ${after > before ? "rose" : "fell"} to ${after} (${why}).`, after > before ? "credit" : "warn", p.id, "credit");
+  if (after >= 800) badge(state, p, "credit_star");
+}
+function creditMark(p) {
+  const sc = creditScore(p);
+  const h = p.credit.hist;
+  if (h[h.length - 1] !== sc) { h.push(sc); if (h.length > HIST) h.shift(); }
 }
 
 // ---------------------------------------------------------------- financial statement
@@ -328,11 +376,12 @@ function payCash(state, p, amount, reason) {
     const need = Math.ceil(-p.cash / 1000) * 1000;
     borrow(state, p, need, true);
     log(state, `${p.name} was short for ${reason}, so the bank lent ${money(need)} automatically.`, "warn", p.id);
+    if (p.credit && !p.fast) { p.credit.late += 1; p.credit.missed = true; creditChange(state, p, -30, "missed payment"); tip(state, p, "credit_late"); }
   }
 }
 
 function borrow(state, p, amount, auto = false) {
-  const rate = state.economy.personal;
+  const rate = r2((state.economy.personal + creditTier(creditScore(p)).personal) * 10000) / 10000;
   const d = p.debts.bank || { label: "Bank loan", balance: 0, monthly: 0, rate };
   d.balance += amount; d.rate = rate;
   d.monthly = Math.round(amortize(d.balance, rate, 5));
@@ -405,7 +454,7 @@ function makePropertyCard(rng, econ) {
   const rate = clamp(econ.mortgage + (type === "HOUSE FOR SALE" ? 0.003 : 0.01), 0.03, 0.12);
   const payment = amortize(price - down, rate, spec.years);
   const noi = (price * rng.tri(spec.cap[0] + 0.005, (spec.cap[0] + spec.cap[1]) / 2 + 0.01, spec.cap[1] + 0.015)) / 12;
-  return { type: "property", category: "re", propType: type, name, story: rng.pick(REAL_ESTATE_STORIES[type]), price, down, loan: price - down, rate, payment: Math.round(payment), noi: Math.round(noi), cashflow: nice(noi - payment, 10) };
+  return { type: "property", category: "re", propType: type, name, story: rng.pick(REAL_ESTATE_STORIES[type]), price, down, loan: price - down, rate, years: spec.years, payment: Math.round(payment), noi: Math.round(noi), cashflow: nice(noi - payment, 10) };
 }
 
 const SMALL_HOMES = ["2BR/1BA Condo", "2BR/1BA House", "3BR/2BA House", "Duplex", "Townhome"];
@@ -421,7 +470,7 @@ function makeSmallDeal(state, rng) {
     const rate = clamp(econ.mortgage + 0.003, 0.03, 0.12);
     const payment = amortize(price - down, rate, 30);
     const noi = (price * rng.tri(0.06, 0.088, 0.12)) / 12;
-    return { type: "property", category: "re", propType: "HOUSE FOR SALE", name, story: rng.pick(REAL_ESTATE_STORIES["HOUSE FOR SALE"]), price, down, loan: price - down, rate, payment: Math.round(payment), noi: Math.round(noi), cashflow: nice(noi - payment, 10), size: "small" };
+    return { type: "property", category: "re", propType: "HOUSE FOR SALE", name, story: rng.pick(REAL_ESTATE_STORIES["HOUSE FOR SALE"]), price, down, loan: price - down, rate, years: 30, payment: Math.round(payment), noi: Math.round(noi), cashflow: nice(noi - payment, 10), size: "small" };
   }
   return { ...makeBusinessCard(rng, econ, [6000, 25000, 90000]), size: "small" };
 }
@@ -441,7 +490,7 @@ function makeBusinessCard(rng, econ, priceRange) {
   const rate = econ.personal + 0.02;
   const payment = amortize(price - down, rate, 10);
   const noi = (price * rng.tri(0.16, 0.26, 0.42)) / 12;
-  return { type: "property", category: "biz", propType: type, name: type, story: rng.pick(BUSINESS_STORIES[type]), price, down, loan: price - down, rate, payment: Math.round(payment), noi: Math.round(noi), cashflow: nice(noi - payment, 10) };
+  return { type: "property", category: "biz", propType: type, name: type, story: rng.pick(BUSINESS_STORIES[type]), price, down, loan: price - down, rate, years: 10, payment: Math.round(payment), noi: Math.round(noi), cashflow: nice(noi - payment, 10) };
 }
 
 function makeJobCard(rng, p) {
@@ -594,6 +643,9 @@ function payday(state, rng, p) {
   else if (p.job.employed && p.job.match && !p.k401Rate) tip(state, p, "no_match");
   if (net >= 0) { p.cash = r2(p.cash + net); narrate(state, "payday", { name: p.name, amt: money(net) }, p.id); }
   else { narrate(state, "payday_neg", { name: p.name, amt: money(-net) }, p.id); payCash(state, p, -net, "bills"); tip(state, p, "negative_paycheck"); }
+  // Every check where all the bills got paid without emergency borrowing builds payment history.
+  if (p.credit && !p.credit.missed) { p.credit.onTime += 1; creditChange(state, p, 2, null); }
+  if (p.credit) p.credit.missed = false;
   if (!p.job.employed) {
     p.job.checksUnemployed += 1;
     if (p.job.benefitsLeft > 0) p.job.benefitsLeft -= 1;
@@ -631,13 +683,15 @@ function buyCard(state, p, card, qty) {
   if (card.type === "property") {
     if (card.down > p.cash) throw new GameError(`Down payment is ${money(card.down)}. You have ${money(p.cash)}. Borrow or sell to raise cash.`);
     p.cash = r2(p.cash - card.down);
-    p.properties.push({ id: `a${p.nextId++}`, category: card.category, propType: card.propType, name: card.name, price: card.price, value: card.price, down: card.down, loan: card.loan, rate: card.rate, payment: card.payment, noi: card.noi, cashflow: card.cashflow });
+    const lt = loanTerms(p, card);
+    p.properties.push({ id: `a${p.nextId++}`, category: card.category, propType: card.propType, name: card.name, price: card.price, value: card.price, down: card.down, loan: card.loan, rate: lt.rate, payment: lt.payment, noi: card.noi, cashflow: lt.cashflow });
     p.stats.bought += 1;
-    if (!p.stats.best || card.cashflow > p.stats.best.cashflow) p.stats.best = { name: card.name, cashflow: card.cashflow };
-    narrate(state, "bought", { name: p.name, asset: card.name, cf: money(card.cashflow) }, p.id);
+    if (!p.stats.best || lt.cashflow > p.stats.best.cashflow) p.stats.best = { name: card.name, cashflow: lt.cashflow };
+    narrate(state, "bought", { name: p.name, asset: card.name, cf: money(lt.cashflow) }, p.id);
+    if (Math.abs(lt.rate - card.rate) > 1e-6) { log(state, `🏦 ${p.name}'s ${lt.tier.label.toLowerCase()} credit (${lt.score}) got a ${(lt.rate * 100).toFixed(2)}% rate instead of ${(card.rate * 100).toFixed(2)}%.`, lt.rate < card.rate ? "credit" : "warn", p.id); tip(state, p, "credit_rates"); }
     badge(state, p, "first_asset");
     badge(state, p, card.category === "biz" ? "boss" : "landlord");
-    tip(state, p, card.cashflow < 0 ? "negative_cashflow" : card.category === "biz" ? "business" : "first_property");
+    tip(state, p, lt.cashflow < 0 ? "negative_cashflow" : card.category === "biz" ? "business" : "first_property");
     return;
   }
   throw new GameError("Nothing to buy on this card.");
@@ -670,6 +724,7 @@ function nextShare(state) {
 export function apply(prev, action) {
   if (prev.phase === "over") throw new GameError("The game is over.");
   const state = JSON.parse(JSON.stringify(prev));
+  for (const q of state.players) if (!q.credit) q.credit = { base: 680, limit: 5000, hist: [680], onTime: 0, late: 0 };
   const rng = Rng.from(state.rng);
   const p = current(state);
   const who = actor(state);
@@ -840,6 +895,8 @@ export function apply(prev, action) {
       p.cash = r2(p.cash - d.balance);
       delete p.debts[action.key];
       p.stats.debtPaid += d.balance;
+      if (action.key === "credit") { creditMark(p); tip(state, p, "credit_util"); log(state, `📈 Credit card paid off: utilization 0%, so ${p.name}'s credit score is now ${creditScore(p)}.`, "credit", p.id, "credit"); if (creditScore(p) >= 800) badge(state, p, "credit_star"); }
+      else creditChange(state, p, 6, `${d.label.toLowerCase()} paid in full`);
       log(state, `✂️ ${p.name} paid off ${d.label} (${money(d.balance)}). That's ${money(toPP(d.monthly))} less in expenses every paycheck.`, "good", p.id, "payoff");
       badge(state, p, "debt_slayer");
       tip(state, p, "payoff");
@@ -851,9 +908,12 @@ export function apply(prev, action) {
       const amt = Math.floor(Number(action.amount) / 1000) * 1000;
       if (!(amt >= 1000)) throw new GameError("Borrow in $1,000 steps.");
       const total = (p.debts.bank ? p.debts.bank.balance : 0) + amt;
-      const limit = Math.max(10000, Math.round((p.job.employed ? p.job.annual : p.job.benefit * PP) * 0.5 + statement(p).passive * PP * 3));
-      if (total > limit) throw new GameError(`The bank caps your loans at ${money(limit)} based on your income.`);
+      const tier = creditTier(creditScore(p));
+      const limit = Math.max(5000, Math.round(((p.job.employed ? p.job.annual : p.job.benefit * PP) * 0.5 + statement(p).passive * PP * 3) * tier.limit));
+      if (total > limit) throw new GameError(`The bank caps your loans at ${money(limit)} based on your income and ${tier.label.toLowerCase()} credit.`);
       borrow(state, p, amt);
+      creditChange(state, p, -6, "hard inquiry for a new loan");
+      tip(state, p, "credit_inquiry");
       break;
     }
 
@@ -863,7 +923,7 @@ export function apply(prev, action) {
       if (!d || !(amt >= 1000) || amt > d.balance) throw new GameError("Repay in $1,000 steps, up to your loan balance.");
       if (amt > p.cash) throw new GameError("Not enough cash.");
       p.cash = r2(p.cash - amt); d.balance -= amt; p.stats.debtPaid += amt;
-      if (d.balance <= 0) delete p.debts.bank; else d.monthly = Math.round(amortize(d.balance, d.rate, 5));
+      if (d.balance <= 0) { delete p.debts.bank; creditChange(state, p, 5, "bank loan paid in full"); } else d.monthly = Math.round(amortize(d.balance, d.rate, 5));
       narrate(state, "repay", { name: p.name, amt: money(amt) }, p.id);
       checkProgress(state, p);
       break;
@@ -908,7 +968,7 @@ function advance(state, rng) {
 export function report(state) {
   return state.players.map((p) => {
     const s = statement(p, state.goal);
-    return { id: p.id, name: p.name, color: p.color, winner: state.winner === p.id, job: p.job.title, netWorth: s.netWorth, passive: s.passive, progress: s.progress, assets: p.properties.length + p.stocks.length, fast: !!p.fast, badges: p.badges.slice(), ...p.stats };
+    return { id: p.id, name: p.name, color: p.color, winner: state.winner === p.id, job: p.job.title, netWorth: s.netWorth, passive: s.passive, progress: s.progress, assets: p.properties.length + p.stocks.length, fast: !!p.fast, badges: p.badges.slice(), credit: creditScore(p), late: p.credit ? p.credit.late : 0, ...p.stats };
   }).sort((a, b) => (b.winner - a.winner) || (b.fast - a.fast) || (b.progress - a.progress) || (b.netWorth - a.netWorth));
 }
 

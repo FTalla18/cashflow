@@ -2,7 +2,7 @@
 // next best moves (instant, offline, deterministic). If a Botpress bot is configured in
 // coach-config.js, a "Chat with Cash" button opens it for free-form questions.
 import { COACH } from "./coach-config.js";
-import { statement, actor, money } from "./engine.js";
+import { statement, actor, money, creditScore, creditTier, utilization } from "./engine.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -35,7 +35,11 @@ export function advice(g, p) {
   const debts = Object.entries(p.debts).filter(([k]) => k !== "mortgage").map(([k, d]) => ({ k, ...d })).sort((a, b) => b.rate - a.rate);
   const payable = debts.find((d) => d.balance <= p.cash);
   if (payable && payable.rate >= 0.1) out.push(`✂️ Pay off your ${payable.label.toLowerCase()} (${money(payable.balance)} at ${(payable.rate * 100).toFixed(0)}%). That's a guaranteed ${(payable.rate * 100).toFixed(0)}% return and ${money(payable.monthly)} less in bills every month.`);
-  else if (debts.length && debts[0].rate >= 0.15) out.push(`💳 Your ${debts[0].label.toLowerCase()} charges ${(debts[0].rate * 100).toFixed(0)}%. Save up ${money(debts[0].balance)} to wipe it out. It's the highest-interest debt you have.`);
+  else if (debts.length && debts[0].rate >= 0.15) out.push(`💳 Your ${debts[0].label.toLowerCase()} balance charges ${(debts[0].rate * 100).toFixed(0)}%. Save up ${money(debts[0].balance)} to wipe it out. It's the highest-interest debt you have.`);
+  const sc = creditScore(p), tier = creditTier(sc), u = utilization(p);
+  if (u >= 0.3 && p.debts.credit) out.push(`💳 Your credit score is ${sc} (${tier.label}) and your cards are ${Math.round(u * 100)}% maxed. Paying off the ${money(p.debts.credit.balance)} card balance drops utilization to 0% and can jump your score fast, which means cheaper mortgages.`);
+  else if (sc < 670) out.push(`💳 Your credit score is ${sc} (${tier.label}), so every loan costs you extra (+${(tier.mortgage * 100).toFixed(1)}% on mortgages). Avoid missed payments: keep enough cash so bills never trigger an emergency loan.`);
+  else if (p.credit && p.credit.late) out.push(`💳 Credit ${sc}. You've had ${p.credit.late} missed payment${p.credit.late > 1 ? "s" : ""}. Each on-time paycheck slowly rebuilds it.`);
   if (p.job.employed && p.job.match && p.k401Rate < 0.06) out.push(`🏦 Your employer matches 50% of your 401(k) up to 6% of pay, and you're at ${Math.round(p.k401Rate * 100)}%. Bumping to 6% is free money for retirement (it doesn't count toward escaping, though).`);
   if (!p.job.employed) out.push(`💼 You're between jobs. Benefits last ${p.job.benefitsLeft} more checks. Your hiring odds go up every turn, and Opportunity tiles can bring job offers.`);
   const gap = s.target - s.passive;

@@ -217,3 +217,13 @@ button, input, select { font: inherit; }
   .ticks { grid-template-columns: 1fr; }
   .tick { grid-template-columns: 1fr auto auto 54px; }
 }
+
+/* credit score */
+.credit { margin-top: 12px; font-size: .84rem; display: grid; gap: 6px; }
+.credit--big { margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); }
+.credit__score { font-family: var(--display); font-size: 1.15rem; color: var(--cc); }
+.credit__tier { font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; color: var(--bg); background: var(--cc); }
+.credit__bar { position: relative; height: 6px; border-radius: 999px; background: linear-gradient(90deg, #ff5d6c 0%, #ff9f43 40%, #ffd23f 60%, #9be564 80%, #3cf5a0 100%); }
+.credit__bar i { position: absolute; top: -4px; width: 4px; height: 14px; margin-left: -2px; border-radius: 2px; background: var(--text); box-shadow: 0 0 0 2px var(--bg); }
+.credit__meta { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--muted); font-size: .76rem; }
+.log p.credit { border-left-color: var(--mint); }

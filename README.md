@@ -26,6 +26,7 @@ A multiplayer, browser-based remake of Freeman Talla's CashFlow game. Each playe
 - **Deterministic:** every game comes from a seed, and the same seed plus the same moves always replay identically. Gen Z narration ("Cash") varies from game to game but never changes the outcome.
 - **Three modes:** Quick (60%), Standard (100%), and **Classic**: escape the rat race, then win on the 🚀 **Fast Track** (CashFlow Day, big business ventures, lawsuits, audits) by buying the dream you picked.
 - **Live stock market:** every ticker has a price history with sparklines. Prices drift each round and react to news and economic events.
+- **Credit score (300–850):** built from payment history, card utilization and hard inquiries. Your tier sets your mortgage and bank-loan rates, so the same deal can cash-flow for one player and lose money for another.
 - **Shared deals:** pass on a deal and the next player can grab it. Stocks are open to everyone at the same price.
 - **Financial literacy built in:**
   - Your 401(k) % is up to you, and most employers match 50% up to 6%.

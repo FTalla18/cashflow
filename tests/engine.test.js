@@ -1,6 +1,6 @@
 // Engine tests: run by opening tests/index.html (results are also POSTed to /log when served by the test server).
 import { paycheckTaxes, federalIncomeTax, setTaxTables, bestTaxYear, taxYears } from "../js/tax.js";
-import { newGame, apply, statement, current, actor, report, GameError, TILES, FAST_TILES } from "../js/engine.js";
+import { newGame, apply, statement, current, actor, report, GameError, TILES, FAST_TILES, creditScore, creditTier, loanTerms } from "../js/engine.js";
 import { Rng } from "../js/rng.js";
 
 const results = [];
@@ -194,10 +194,11 @@ function simulate(seed, nPlayers, maxRounds = 300, length = "standard") {
   let g = newGame({ seed: "k401", players: [{ id: 1, name: "A" }] });
   for (let i = 0; !(g.players[0].job.employed && !g.players[0].job.gig && g.players[0].job.match) && i < 50; i++) g = newGame({ seed: `k401-${i}`, players: [{ id: 1, name: "A" }] });
   const before = statement(g.players[0]), oldRate = g.players[0].k401Rate;
-  g = apply(g, { type: "SET_401K", rate: 0.1, by: "1" });
+  const newRate = oldRate >= 0.1 ? 0.03 : 0.1, up = newRate > oldRate;
+  g = apply(g, { type: "SET_401K", rate: newRate, by: "1" });
   const after = statement(g.players[0]);
-  ok("401(k) 10% lowers net pay but less than the contribution (tax savings)", after.netPay < before.netPay && before.netPay - after.netPay < (g.players[0].job.annual * (0.1 - oldRate)) / 26, `${before.netPay} -> ${after.netPay}`);
-  ok("employer match capped at 3% of pay (50% of 6%)", Math.abs(after.match - (g.players[0].job.annual * 0.03) / 26) < 0.02, `${after.match}`);
+  ok("changing the 401(k) moves net pay by less than the contribution change (tax savings)", (up ? after.netPay < before.netPay : after.netPay > before.netPay) && Math.abs(before.netPay - after.netPay) < (g.players[0].job.annual * Math.abs(newRate - oldRate)) / 26, `${before.netPay} -> ${after.netPay}`);
+  ok("employer match = 50% of contributions, capped at 3% of pay", Math.abs(after.match - (g.players[0].job.annual * Math.min(newRate, 0.06) * 0.5) / 26) < 0.02, `${after.match}`);
 
   // dreams
   const d = newGame({ seed: "dreams", players: [{ id: 1, name: "A" }] });
@@ -231,6 +232,46 @@ function simulate(seed, nPlayers, maxRounds = 300, length = "standard") {
   setTaxTables({ years: { 2099: { standardDeduction: { single: 1, married_joint: 1, married_separate: 1, head_household: 1 }, brackets: { single: [[1, .1], [2, .12], [3, .22], [4, .24], [5, .32], [6, .35], [null, .37]], married_joint: [[1, .1], [2, .12], [3, .22], [4, .24], [5, .32], [6, .35], [null, .37]], married_separate: [[1, .1], [2, .12], [3, .22], [4, .24], [5, .32], [6, .35], [null, .37]], head_household: [[1, .1], [2, .12], [3, .22], [4, .24], [5, .32], [6, .35], [null, .37]] }, fica: { socialSecurityRate: .062, socialSecurityWageBase: 1e6, medicareRate: .0145, additionalMedicareRate: .009, additionalMedicareThreshold: { single: 2e5, married_joint: 2.5e5, married_separate: 1.25e5, head_household: 2e5 } }, limits: { k401: 1, ira: 1, hsaSelf: 1, hsaFamily: 1 }, childTaxCredit: 0 }, 2098: { broken: true } } });
   ok("loaded tax table is used for its year", bestTaxYear(2099) === 2099 && bestTaxYear(2026) === 2026 && !taxYears().includes(2098));
   ok("invalid tax table is rejected", !taxYears().includes(2098));
+}
+
+// ---------- 9. Credit score
+{
+  const scores = [];
+  for (let i = 0; i < 300; i++) scores.push(creditScore(newGame({ seed: `cr-${i}`, players: [{ id: 1, name: "A" }] }).players[0]));
+  scores.sort((a, b) => a - b);
+  ok("starting credit scores look realistic (median 640–740)", scores[150] >= 640 && scores[150] <= 740 && scores[0] >= 300 && scores[299] <= 850, `min ${scores[0]}, median ${scores[150]}, max ${scores[299]}`);
+
+  // paying off a maxed-out card raises the score (utilization)
+  let g = newGame({ seed: "credit", players: [{ id: 1, name: "A" }] });
+  const p = g.players[0];
+  p.debts.credit = { label: "Credit cards", balance: p.credit.limit * 0.9, monthly: 100, rate: 0.22 }; p.cash = 1e6;
+  const before = creditScore(p);
+  g = apply(g, { type: "ROLL", by: "1" });
+  if (g.phase !== "manage") g = apply(g, { type: "PASS", by: "1" });
+  if (g.phase === "share") while (g.phase === "share") g = apply(g, { type: "PASS", by: actor(g).id });
+  const mid = creditScore(g.players[0]);
+  g = apply(g, { type: "PAYOFF", key: "credit", by: "1" });
+  ok("paying off a 90%-used card raises the score 60+ points", creditScore(g.players[0]) - mid >= 60, `${before} → ${mid} → ${creditScore(g.players[0])}`);
+  const b4 = creditScore(g.players[0]);
+  g = apply(g, { type: "BORROW", amount: 2000, by: "1" });
+  ok("a bank loan is a hard inquiry (−6)", creditScore(g.players[0]) === Math.max(300, Math.min(850, b4 - 6)), `${b4} → ${creditScore(g.players[0])}`);
+
+  // missed payment: running out of cash
+  let m = newGame({ seed: "late", players: [{ id: 1, name: "A" }] });
+  m.players[0].cash = 0; m.players[0].living.other.monthly = 50000;
+  const s0 = creditScore(m.players[0]);
+  for (let i = 0; i < 20 && !m.players[0].credit.late; i++) { m = apply(m, { type: "ROLL", by: "1" }); if (m.phase === "decide" || m.phase === "choose") m = apply(m, { type: "PASS", by: "1" }); while (m.phase === "share") m = apply(m, { type: "PASS", by: actor(m).id }); m = apply(m, { type: "END_TURN", by: "1" }); }
+  ok("a missed payment drops the score", m.players[0].credit.late > 0 && creditScore(m.players[0]) < s0, `${s0} → ${creditScore(m.players[0])}, late ${m.players[0].credit.late}`);
+
+  // better credit = cheaper loan on the same card
+  const card = { type: "property", category: "re", price: 300000, down: 30000, loan: 270000, rate: 0.065, years: 30, noi: 2200 };
+  const hi = { credit: { base: 840, limit: 5000 }, debts: {} }, lo = { credit: { base: 540, limit: 5000 }, debts: {} };
+  const a1 = loanTerms(hi, card), a2 = loanTerms(lo, card);
+  ok("credit tiers change the rate and the cashflow", a1.rate < 0.065 && a2.rate > 0.065 && a1.cashflow > a2.cashflow, `${creditTier(creditScore(hi)).label} ${(a1.rate * 100).toFixed(2)}% $${a1.cashflow}/mo vs ${creditTier(creditScore(lo)).label} ${(a2.rate * 100).toFixed(2)}% $${a2.cashflow}/mo`);
+
+  // old saved games without credit still work
+  const old = newGame({ seed: "old", players: [{ id: 1, name: "A" }] }); delete old.players[0].credit;
+  ok("old saved games get a credit score on the next move", !!apply(old, { type: "ROLL", by: "1" }).players[0].credit);
 }
 
 // ---------- 8. Classic mode game length

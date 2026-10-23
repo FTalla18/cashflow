@@ -39,6 +39,20 @@ A multiplayer board game (1–6 players, same device or online with a room code)
 - **401(k):** choose 0%, 3%, 6%, 10% or 15% of pay. It's pre-tax (lowers your income tax). About 75% of employers match 50% of what you put in, up to 6% of your pay. That's free money for retirement, but it's locked and doesn't count toward escaping. Trade-off: more 401(k) = smaller paycheck now.
 - **HSA:** pre-tax savings for health costs (skips FICA too).
 
+## Credit score (300–850, like FICO)
+- Every player starts with a score based on their life (most between 560 and 790).
+- **Payment history:** each paycheck where all bills get paid without emergency borrowing adds +2. Running out of cash (the bank's automatic loan) counts as a **missed payment: −30**.
+- **Credit utilization:** credit card balance ÷ credit limit, checked live. Under 10%: +20 · under 30%: +5 · 30–50%: −15 · 50–80%: −35 · over 80%: −55. Paying off the card entirely drops utilization to 0%.
+- **Hard inquiries:** taking a bank loan costs −6. Paying off any other debt in full: +6. Paying off a bank loan: +5.
+- **Tiers and what they do:**
+  - Exceptional 800+: mortgages −0.5%, bank loans −4%, 25% higher bank loan limit (🌟 badge)
+  - Very good 740–799: mortgages −0.25%, bank loans −2%, 10% higher limit
+  - Good 670–739: standard rates
+  - Fair 580–669: mortgages +1%, bank loans +5%, limit cut 25%
+  - Poor below 580: mortgages +2.5%, bank loans +10%, limit cut in half
+- Business loans move by half the bank-loan adjustment. Every deal card shows YOUR rate, payment and cashflow based on your score, so the same deal can be great for one player and negative for another.
+- Real life: payment history is ~35% of a FICO score, utilization ~30%, length of history ~15%, new credit ~10%, credit mix ~10%. A missed payment stays on your report for 7 years. On a $300k mortgage, 1% higher rate ≈ $200/month more.
+
 ## Fast Track (Classic mode)
 - When your passive income covers your expenses you leave the rat race. You start the Fast Track with cash = 100 × your monthly passive income ("CashFlow Day").
 - 24 tiles, 2 dice every turn. CashFlow Day pays 100× your monthly passive income + all Fast Track business cashflow.
@@ -48,7 +62,7 @@ A multiplayer board game (1–6 players, same device or online with a room code)
 - Win: buy your dream, or add $50,000/month of business cashflow.
 
 ## Badges
-🌱 First asset · 🏠 Landlord · 🏪 Business owner · 📈 Dividend earner · ✂️ Debt slayer · 🕊️ Consumer-debt free · 💛 Generous · 💪 Comeback kid (hired after a layoff) · 🧗 Halfway out · 🚀 Escaped · 💰 Sold an asset for a profit.
+🌱 First asset · 🌟 Exceptional credit (800+) · 🏠 Landlord · 🏪 Business owner · 📈 Dividend earner · ✂️ Debt slayer · 🕊️ Consumer-debt free · 💛 Generous · 💪 Comeback kid (hired after a layoff) · 🧗 Halfway out · 🚀 Escaped · 💰 Sold an asset for a profit.
 
 ## Online play
 The host creates a room and shares the code or link. The host can set a turn timer (60s, 90s or 3 minutes). When time runs out the game plays it safe for you: roll, take a small deal, pass, end the turn. Disconnected players are auto-skipped after 20 seconds. Rejoin with the same code on the same browser tab to get your seat back.
