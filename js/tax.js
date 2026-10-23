@@ -85,3 +85,29 @@ export function paycheckTaxes(annualGross, { status = "single", stateRate = 0, k
   out.totalTax = Math.round((out.federal + out.socialSecurity + out.medicare + out.state) * 100) / 100;
   return out;
 }
+
+/** Top bracket rate that applies to the next dollar of taxable income. */
+export function marginalRate(taxable, status, year = bestTaxYear()) {
+  for (const [limit, rate] of taxTable(year).brackets[status]) if (limit === null || taxable <= limit) return rate;
+  return 0.37;
+}
+
+/** Annual taxable income after pre-tax savings and the standard deduction. */
+export function taxableIncome(annualGross, { status = "single", k401Annual = 0, hsaAnnual = 0, children = 0, year = bestTaxYear() } = {}) {
+  const T = taxTable(year);
+  const hsa = Math.min(hsaAnnual, children > 0 || status === "married_joint" ? T.limits.hsaFamily : T.limits.hsaSelf);
+  return Math.max(0, annualGross - Math.min(k401Annual, T.limits.k401) - hsa - T.standardDeduction[status]);
+}
+
+/**
+ * Refundable part of the Child Tax Credit ("Additional Child Tax Credit"): when your tax is smaller than the
+ * credit, up to $1,700 per child (2025–26) comes back at tax time, phased in at 15% of earnings above $2,500.
+ */
+export function refundableChildCredit(annualGross, opts = {}) {
+  const children = opts.children || 0;
+  if (!children) return 0;
+  const T = taxTable(opts.year || bestTaxYear());
+  const before = federalIncomeTax(taxableIncome(annualGross, opts), opts.status || "single", opts.year);
+  const unused = Math.max(0, children * T.childTaxCredit - before);
+  return Math.round(Math.min(unused, children * (T.refundableChildCredit || 1700), Math.max(0, (annualGross - 2500) * 0.15)));
+}

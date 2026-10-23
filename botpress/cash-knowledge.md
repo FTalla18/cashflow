@@ -1,7 +1,7 @@
-# CashFlow · Escape the Rat Race: knowledge base for Cash
+# Rat Race Royale: knowledge base for Cash
 
 ## What the game is
-A multiplayer board game (1–6 players, same device or online with a room code) inspired by the classic CashFlow game. Each player gets a realistic life: a real job with a salary from U.S. Bureau of Labor Statistics data (May 2025), or no job at all (about 12% of characters start between jobs), plus a city, rent or a mortgage, a car loan, student loans, credit cards, maybe a spouse and kids. Taxes use the real IRS federal brackets (updated automatically every year), Social Security and Medicare (FICA), and approximate state taxes.
+**Rat Race Royale** (by Freeman T.) is a multiplayer board game (1–6 players, same device or online with a room code) inspired by classic rat-race board games. Each player gets a realistic life: a real job with a salary from U.S. Bureau of Labor Statistics data (May 2025), or no job at all (about 12% of characters start between jobs), plus a city, rent or a mortgage, a car loan, student loans, credit cards, maybe a spouse and kids. Taxes use the real IRS federal brackets (updated automatically every year), Social Security and Medicare (FICA), and approximate state taxes.
 
 ## How to win
 - **Quick mode:** passive income covers 60% of living expenses.
@@ -9,11 +9,21 @@ A multiplayer board game (1–6 players, same device or online with a room code)
 - **Classic mode:** escape the rat race, then go to the **Fast Track** and win by buying your **dream** or by adding $50,000/month of new business cashflow.
 - Passive income = dividends + rental and business cashflow. Your salary does NOT count, and neither does your 401(k).
 
-## The financial statement (per bi-weekly paycheck)
-- Income: salary (or unemployment benefits), spouse's pay, dividends, rental and business cashflow.
-- Expenses: federal income tax, FICA (Social Security 6.2% up to the wage base + Medicare 1.45%), state tax, 401(k) and HSA contributions, then living expenses: housing, car loan, student loans, credit cards, retail/BNPL debt, bank loans, health insurance, groceries/utilities/phone/gas, child costs.
-- Payday = total income − total expenses. If it's negative, you lose money every paycheck and the bank automatically lends you money in $1,000 steps when you run out of cash.
+## How money moves (like real life)
+- **Every paycheck (every 2 weeks, 26 a year):** each Pay Day tile you land on or pass is one paycheck. Gross pay (salary, spouse's pay, or unemployment benefits) minus what's taken out first: federal income tax withheld, Social Security + Medicare (FICA), state tax, 401(k), HSA and employer health insurance = **take-home pay**, which goes into your cash.
+- **Every month (on the 1st):** the first paycheck of a new month also triggers **bills**: rent or mortgage, car loan, student loans, credit card and retail minimums, bank loans, groceries/utilities/phone/gas, child care (and health insurance if you don't have an employer plan). Your **passive income** (rent from properties, business profit, dividends) arrives the same day.
+- Two paychecks usually cover a month, and twice a year a month has THREE paychecks. Smart budgeters use that third check for savings or debt.
+- **Monthly cashflow** = take-home × 26 ÷ 12 + passive income − bills. If it's negative, the bills outrun your pay.
+- If you can't cover a bill, the bank lends you the shortfall automatically in $1,000 steps, and it counts as a **missed payment** (−30 credit).
 - Gig workers (rideshare, freelance, hair stylists) pay self-employment tax (both halves of FICA) and their income swings between 60% and 140% of average each check.
+- **The game calendar:** each player's timeline starts January 1. The 📅 date shows in the Money panel and the action bar.
+
+## Taxes and refunds
+- Federal tax is withheld from every paycheck based on your W-4. Most players over-withhold a little (that's why most people get a refund).
+- **January 1:** the tax year closes. The game compares what was withheld with what you actually owed, including tax on **investment income** (rentals are taxed on about half their cashflow thanks to depreciation; business profit and dividends fully). Families with kids can also get the refundable part of the Child Tax Credit (up to $1,700 per child).
+- **April:** the refund lands in your cash, or the tax bill is due. Investors with lots of passive income often OWE, because nobody withholds tax on rent or dividends.
+- Every player starts the game with last year's return already filed: that refund (or bill) arrives in the first April.
+- A big refund means you overpaid all year (an interest-free loan to the government). Adjusting your W-4 keeps more in each paycheck.
 
 ## The board (81 tiles)
 - **Pay Day 💰:** collect your paycheck when you land on or pass it. About once every 12 paychecks you get an annual review (raise of 0–8%).
@@ -22,7 +32,7 @@ A multiplayer board game (1–6 players, same device or online with a room code)
 - **Personal Spending 🛍️:** a "doodad" you must pay for (scaled to your income).
 - **New Baby 👶:** child costs go up. Each child makes another less likely (90% with no kids, then 60%, 35%, 15%; max 4). Otherwise it's a family milestone (a birthday party or reunion) that costs a little cash. Single parents file as head of household. Each kid gets a $2,200 Child Tax Credit.
 - **RE Offer 📨:** a buyer offers 105–160% of value for a certain property type. Sell if you own one.
-- **Downsizing 📉:** usually a furlough, like the original game: pay one check of expenses and sit out a turn, but you keep your job. About 40% of the time it's a real layoff: 2 paychecks of severance, then unemployment benefits (45% of pay, max $1,100/check, for 12 checks), pricier health insurance, and you skip a turn. Gig workers get a slow stretch instead. Hiring odds start at 18% per turn and grow 8% each paycheck you're unemployed (up to 70%).
+- **Downsizing 📉:** usually a furlough, like the original game: pay two weeks of expenses and sit out a turn, but you keep your job. About 40% of the time it's a real layoff: 2 paychecks of severance, then unemployment benefits (45% of pay, max $1,100/check, for 12 checks), pricier health insurance, and you skip a turn. Gig workers get a slow stretch instead. Hiring odds start at 18% per turn and grow 8% each paycheck you're unemployed (up to 70%).
 - **Economic Event 📰:** affects everyone: stock booms/crashes, housing up/down, interest-rate shifts, inflation, rent spikes, layoff waves.
 
 ## Deals and the math
@@ -34,7 +44,8 @@ A multiplayer board game (1–6 players, same device or online with a room code)
 - **Deal sharing:** if you pass on a deal, the next player who can afford it gets offered it. If you buy a stock, everyone else can buy it at the same price too.
 
 ## Money moves
-- **Pay off debt:** removes that monthly payment from your expenses forever. Highest interest first (credit cards ~22%+, retail/BNPL ~30%).
+- **Pay off debt:** removes that monthly payment from your bills forever. Highest interest first (credit cards ~22%+, retail/BNPL ~30%).
+- **Pay down debt:** pay any amount ($100 steps) toward a debt in the statement's Liabilities section. Card and retail minimums drop with the balance (and paying cards down improves utilization → credit score). Car, student and mortgage payments drop in proportion (like a loan 'recast'). In real life, extra payments on a car or mortgage usually shorten the loan instead of lowering the payment unless you ask the lender to recast.
 - **Bank loans:** borrow in $1,000 steps (5-year loan at the current bank rate). The limit depends on your income. Good for buying a cash-flowing asset, bad for doodads.
 - **401(k):** choose 0%, 3%, 6%, 10% or 15% of pay. It's pre-tax (lowers your income tax). About 75% of employers match 50% of what you put in, up to 6% of your pay. That's free money for retirement, but it's locked and doesn't count toward escaping. Trade-off: more 401(k) = smaller paycheck now.
 - **HSA:** pre-tax savings for health costs (skips FICA too).
@@ -54,8 +65,8 @@ A multiplayer board game (1–6 players, same device or online with a room code)
 - Real life: payment history is ~35% of a FICO score, utilization ~30%, length of history ~15%, new credit ~10%, credit mix ~10%. A missed payment stays on your report for 7 years. On a $300k mortgage, 1% higher rate ≈ $200/month more.
 
 ## Fast Track (Classic mode)
-- When your passive income covers your expenses you leave the rat race. You start the Fast Track with cash = 100 × your monthly passive income ("CashFlow Day").
-- 24 tiles, 2 dice every turn. CashFlow Day pays 100× your monthly passive income + all Fast Track business cashflow.
+- When your passive income covers your expenses you leave the rat race. You start the Fast Track with cash = 100 × your monthly passive income ("Payout Day").
+- 24 tiles, 2 dice every turn. Payout Day pays 100× your monthly passive income + all Fast Track business cashflow.
 - Business tiles: buy big ventures ($100k–$2.5M, all cash) that add monthly cashflow.
 - Dream tiles: buy YOUR dream (picked in round 1 from 3 options) to win.
 - Lawsuit: lose half your cash. Tax Audit: lose 30%. Market Crash: lose 25%. (Lesson: insurance, good records, and turning cash into assets.)
@@ -63,6 +74,12 @@ A multiplayer board game (1–6 players, same device or online with a room code)
 
 ## Badges
 🌱 First asset · 🌟 Exceptional credit (800+) · 🏠 Landlord · 🏪 Business owner · 📈 Dividend earner · ✂️ Debt slayer · 🕊️ Consumer-debt free · 💛 Generous · 💪 Comeback kid (hired after a layoff) · 🧗 Halfway out · 🚀 Escaped · 💰 Sold an asset for a profit.
+
+## The screen
+- **Top bar:** everyone's race out of the rat race (passive income vs. what they need each month). Tap a name to see their statement.
+- **Left menu (bottom on phones):** 💼 Money (cash, take-home, monthly cashflow, the calendar, upcoming bills and tax refund, 401(k)), 📄 Statement, 💳 Credit, 📈 Market, 👥 Players, 📰 Feed, 🚀 Fast Track, 💬 Cash.
+- **Middle:** the board. Cards (deals, offers, charity, job offers) pop up in the middle of the board.
+- **Bottom bar:** whose turn it is, your cash, and the main buttons (Roll, Manage money, End turn).
 
 ## Online play
 The host creates a room and shares the code or link. The host can set a turn timer (60s, 90s or 3 minutes). When time runs out the game plays it safe for you: roll, take a small deal, pass, end the turn. Disconnected players are auto-skipped after 20 seconds. Rejoin with the same code on the same browser tab to get your seat back.

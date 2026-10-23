@@ -1,0 +1,12 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0">
+<iframe id="f" src="../index.html" style="width:100vw;height:100vh;border:0"></iframe>
+<script>
+// opens a panel or the statement after a few moves: ?pane=me|credit|ticker  or ?stmt=1
+const q=new URLSearchParams(location.search);
+f.onload=()=>{const w=f.contentWindow,d=f.contentDocument; try{w.localStorage.clear()}catch{}
+ setTimeout(()=>{ d.querySelector('[data-act="startLocal"]').click(); let k=0;
+  const step=()=>{ if(k++>=Number(q.get('n')||4)){ if(q.get('pane')) d.querySelector(`#rail [data-pane="${q.get('pane')}"]`).click(); if(q.get('stmt')) d.querySelector('[data-act="stmtMe"]').click(); return; }
+   const b=d.querySelector('[data-act="ROLL"]')||d.querySelector('[data-act="DEAL"][data-size="small"]')||d.querySelector('#stage [data-act="PASS"]')||d.querySelector('[data-act="END_TURN"]'); if(b) b.click(); setTimeout(step,500); };
+  step(); },400);
+};
+</script></body></html>

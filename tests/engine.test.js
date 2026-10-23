@@ -1,6 +1,6 @@
 // Engine tests: run by opening tests/index.html (results are also POSTed to /log when served by the test server).
 import { paycheckTaxes, federalIncomeTax, setTaxTables, bestTaxYear, taxYears } from "../js/tax.js";
-import { newGame, apply, statement, current, actor, report, GameError, TILES, FAST_TILES, creditScore, creditTier, loanTerms } from "../js/engine.js";
+import { newGame, apply, statement, current, actor, report, GameError, TILES, FAST_TILES, creditScore, creditTier, loanTerms, monthOf } from "../js/engine.js";
 import { Rng } from "../js/rng.js";
 
 const results = [];
@@ -294,6 +294,47 @@ function simulate(seed, nPlayers, maxRounds = 300, length = "standard") {
   }
   const top = pos.filter((x) => x >= 0.75).length / pos.length, low = pos.filter((x) => x <= 0.25).length / pos.length;
   ok("stock cards rarely sit at the top of their 52-week range", top < 0.3 && low > 0.2, `${pos.length} cards: ${Math.round(low * 100)}% near the low, ${Math.round(top * 100)}% near the high`);
+}
+
+// ---------- 11. Money calendar, taxes, paying debts down
+{
+  ok("26 paychecks span 12 monthly bill dates", monthOf(26) === 11 || monthOf(26) === 12, `monthOf(26)=${monthOf(26)}`);
+  // play one player solo (never buying anything) until 16 months pass: bills monthly, a tax year closes, April settles it
+  let g = newGame({ seed: "calendar", players: [{ id: 1, name: "A" }] });
+  g.players[0].cash = 50000;
+  const startPending = g.players[0].tax.pending;
+  const seen = {}; let lastN = 0, guard = 0;
+  while (g.players[0].month < 16 && g.phase !== "over" && guard++ < 6000) {
+    const ph = g.phase;
+    const act = ph === "roll" ? { type: "ROLL" } : ph === "manage" ? { type: "END_TURN" } : { type: "PASS" };
+    g = apply(g, { ...act, by: actor(g).id });
+    for (const l of g.log) if (l.n > lastN) { seen[l.key] = (seen[l.key] || 0) + 1; lastN = l.n; }
+  }
+  const p = g.players[0];
+  ok("bills hit once a month, paychecks every 2 weeks", seen.bills === p.month && p.checks >= p.month * 2, `${p.checks} paychecks, ${seen.bills} bill days over ${p.month} months`);
+  ok("prior-year tax return is pending at the start", startPending && startPending.year === g.taxYear - 1, JSON.stringify(startPending));
+  ok("a tax year closes in January", seen.tax_close === 1, `tax_close ${seen.tax_close}`);
+  ok("refunds/bills settle in April (prior year + this year)", (seen.tax_refund || 0) + (seen.tax_bill || 0) === 2, `refunds ${seen.tax_refund || 0}, bills ${seen.tax_bill || 0}`);
+
+  // statement: take-home per paycheck, bills per month
+  const s = statement(newGame({ seed: "stmt", players: [{ id: 1, name: "A" }] }).players[0]);
+  ok("monthly cashflow = take-home × 26/12 + passive − bills", Math.abs(s.monthlyCashflow - ((s.takeHome * 26) / 12 + s.passive - s.billsTotal)) < 0.02);
+
+  // pay down part of a debt
+  let d = newGame({ seed: "paydown", players: [{ id: 1, name: "A" }] });
+  d.players[0].debts.credit = { label: "Credit cards", balance: 5000, monthly: 150, rate: 0.22 };
+  d.players[0].debts.car = { label: "Car loan", balance: 10000, monthly: 300, rate: 0.07 };
+  d.players[0].cash = 20000;
+  d = apply(d, { type: "ROLL", by: "1" });
+  while (d.phase !== "manage" && d.phase !== "over") d = apply(d, { type: "PASS", by: actor(d).id });
+  const before = creditScore(d.players[0]);
+  d = apply(d, { type: "PAY_DOWN", key: "credit", amount: 3000, by: "1" });
+  d = apply(d, { type: "PAY_DOWN", key: "car", amount: 5000, by: "1" });
+  const q = d.players[0];
+  ok("pay down: balances and payments drop", q.debts.credit.balance === 2000 && q.debts.credit.monthly === 60 && q.debts.car.balance === 5000 && q.debts.car.monthly === 150, JSON.stringify([q.debts.credit, q.debts.car]));
+  ok("paying the card down improves credit (utilization)", creditScore(q) >= before, `${before} → ${creditScore(q)}`);
+  d = apply(d, { type: "PAY_DOWN", key: "credit", amount: 999999, by: "1" });
+  ok("paying more than the balance = paid off", !d.players[0].debts.credit || d.players[0].cash < 0, "");
 }
 
 // ---------- 8. Classic mode game length

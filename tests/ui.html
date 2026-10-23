@@ -20,7 +20,7 @@ f.onload=()=>{const w=f.contentWindow,d=f.contentDocument;
  }
  function finish(){
   const g=(JSON.parse(w.localStorage.getItem('cf.saves')||'[]'))[0];
-  const lines=[`errors: ${JSON.stringify(errs)}`,`clicks: ${clicks}`,`round: ${g&&g.game.round}`,`ticker rows: ${d.querySelectorAll('.tick').length}`,`fast panel: ${!d.getElementById('fast').hidden}`,`dream: ${g&&g.game.players[0].dream.name}`,`chat button: ${window.__chat}`,`botpress loaded: ${window.__bp}`,`saves: ${(JSON.parse(w.localStorage.getItem('cf.saves')||'[]')).length}`,`coach: ${d.getElementById('coachBody').textContent.replace(/\s+/g,' ').slice(0,200)}`, ...(g?g.game.log.slice(-14).map(l=>`[${l.key||l.kind}] ${l.text}`):[])];
+  const lines=[`errors: ${JSON.stringify(errs)}`,`clicks: ${clicks}`,`round: ${g&&g.game.round}`,`ticker rows: ${d.querySelectorAll('.tick').length}`,`fast panel: ${!d.getElementById('fast').hidden}`,`dream: ${g&&g.game.players[0].dream.name}`,`chat button: ${window.__chat}`,`botpress loaded: ${window.__bp}`,`cashes: ${g&&g.game.players.map(p=>p.name+':'+p.cash+' bank:'+(p.debts.bank?p.debts.bank.balance:0)).join(' | ')}`,`saves: ${(JSON.parse(w.localStorage.getItem('cf.saves')||'[]')).length}`,`coach: ${d.getElementById('coachBody').textContent.replace(/\s+/g,' ').slice(0,200)}`, ...(g?g.game.log.slice(-14).map(l=>`[${l.key||l.kind}] ${l.text}`):[])];
   if(new URLSearchParams(location.search).get('stmt')) d.querySelector('#me [data-act="stmt"]').click();
   fetch('/log',{method:'POST',body:lines.join('\n')});
  }

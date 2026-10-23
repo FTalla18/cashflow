@@ -1,6 +1,6 @@
-# CashFlow: Escape the Rat Race
+# Rat Race Royale
 
-A multiplayer, browser-based remake of Freeman Talla's CashFlow game. Each player lives a real-life character: a job (or not), a city, rent or a mortgage, a car loan, maybe kids and a working spouse. Players beat the bills, buy assets, and race to be the first whose **passive income covers their living expenses**.
+A multiplayer, browser-based financial-literacy board game by Freeman T., grown from Freeman's original CashFlow game project. Each player lives a real-life character: a job (or not), a city, rent or a mortgage, a car loan, maybe kids and a working spouse. Players beat the bills, buy assets, and race to be the first whose **passive income covers their living expenses**.
 
 **Play:** https://ftalla18.github.io/cashflow/
 
@@ -24,9 +24,11 @@ A multiplayer, browser-based remake of Freeman Talla's CashFlow game. Each playe
   - Online play is browser-to-browser (WebRTC via PeerJS), so there's no server to run.
   - The host's browser referees every move.
 - **Deterministic:** every game comes from a seed, and the same seed plus the same moves always replay identically. Gen Z narration ("Cash") varies from game to game but never changes the outcome.
-- **Three modes:** Quick (60%), Standard (100%), and **Classic**: escape the rat race, then win on the 🚀 **Fast Track** (CashFlow Day, big business ventures, lawsuits, audits) by buying the dream you picked.
+- **Three modes:** Quick (60%), Standard (100%), and **Classic**: escape the rat race, then win on the 🚀 **Fast Track** (Payout Day, big business ventures, lawsuits, audits) by buying the dream you picked.
 - **Live stock market:** every ticker has a price history with sparklines. Prices drift each round and react to news and economic events.
 - **Credit score (300–850):** built from payment history, card utilization and hard inquiries. Your tier sets your mortgage and bank-loan rates, so the same deal can cash-flow for one player and lose money for another.
+- **Money moves like real life:** paychecks every 2 weeks (taxes, 401(k), health insurance come out first), bills and passive income on the 1st of each month, and a yearly tax reconciliation: refund or bill in April, including tax on investment income.
+- **Pay debts off or down:** any amount, in $100 steps.
 - **Shared deals:** pass on a deal and the next player can grab it. Stocks are open to everyone at the same price.
 - **Financial literacy built in:**
   - Your 401(k) % is up to you, and most employers match 50% up to 6%.
@@ -36,7 +38,8 @@ A multiplayer, browser-based remake of Freeman Talla's CashFlow game. Each playe
   - **Ask Cash 💬**: a built-in coach that reads your statement and suggests your next best moves. Plus a Botpress AI chat with Cash (see [botpress/](botpress/)).
 - **Saved games:** every move autosaves. The last 8 games are listed on the home screen, and online games resume with the same room code (friends rejoin by name). Download or load save files to switch devices.
 - **Online turn timer:** the host can set 60s, 90s or 3 minutes. Disconnected players get auto-skipped.
-- **Calm layout:** cards appear in the middle of the board, and the main buttons live in a bar pinned to the bottom of the screen. Details (credit, 401(k), market, Fast Track, older feed) fold away until you tap them.
+- **Calm layout:** the board sits in the center with everyone's progress across the top, a side menu for money details (Money, Statement, Credit, Market, Players, Feed), cards that pop up in the middle of the board, and the main buttons in a bar at the bottom.
+- **Feels alive:** bright blue theme, layered synthesized sounds (cash register, dice tumbling, fanfares), confetti for big moments, money that floats up when your cash changes.
 - **Sound effects** synthesized in the browser (with a mute toggle), plus token-hop animation.
 
 ## Files

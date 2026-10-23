@@ -3,6 +3,7 @@ import { newGame, apply, current, actor, GameError, MAX_PLAYERS } from "./engine
 import { renderGame, renderBoard, statementHTML, showDice, renderTimer } from "./ui.js";
 import { setTaxTables, bestTaxYear } from "./tax.js";
 import { initCoach, openCoach } from "./coach.js";
+import { confetti, floatMoney } from "./fx.js";
 import { sfx, soundFor, toggleMute, isMuted } from "./sound.js";
 import { hostRoom, joinRoom } from "./net.js";
 
@@ -17,6 +18,7 @@ const clientKey = (() => {
 })();
 
 const app = {
+  pane: null,          // open side panel: "me" | "credit" | "ticker" | "players" | "log" | "fast"
   mode: null,          // "local" | "host" | "guest"
   game: null,
   localIds: new Set(), // players controlled on this device
@@ -120,6 +122,16 @@ function setGame(next) {
     }, stepMs);
   } else playSounds(fresh);
   if ($("stmtDialog").open && app.stmtFor) openStatement(app.stmtFor, true);
+  // money floats up from the dock when your cash changes; confetti for the big moments
+  if (same) {
+    const vid = app.mode === "local" ? current(prev).id : app.viewerId;
+    const a = prev.players.find((p) => p.id === vid), b = next.players.find((p) => p.id === vid);
+    const d = a && b ? Math.round(b.cash - a.cash) : 0;
+    if (Math.abs(d) >= 1) setTimeout(() => floatMoney(`${d > 0 ? "+" : "−"}$${Math.abs(d).toLocaleString()}`, d > 0, $("dockCash")), mover ? 900 : 100);
+    const big = fresh.find((l) => ["win", "dream_win", "fast_win", "escaped"].includes(l.key));
+    if (big) setTimeout(() => confetti({ count: 260 }), 600);
+    else if (fresh.some((l) => ["badge", "tax_refund", "hired", "raise"].includes(l.key))) setTimeout(() => confetti({ count: 90, y: 0.8 }), mover ? 1000 : 200);
+  }
   if (app.mode === "local" || app.mode === "host") autosave();
 }
 
@@ -146,7 +158,7 @@ function validSave(x) {
   return x && x.game && Array.isArray(x.game.players) && x.game.players.length && x.game.seed && Array.isArray(x.game.board) && (x.mode === "local" || x.mode === "host");
 }
 function resumeSave(sv) {
-  if (!validSave(sv)) { toast("That save file doesn't look like a CashFlow game."); return; }
+  if (!validSave(sv)) { toast("That save file doesn't look like a Rat Race Royale game."); return; }
   if (sv.mode === "host") { host(sv); return; }
   app.mode = "local"; app.code = null; app.online = null;
   app.localIds = new Set(sv.game.players.map((p) => p.id));
@@ -181,7 +193,7 @@ function renderSaves() {
     const file = e.target.files[0];
     if (!file) return;
     try { const sv = JSON.parse(await file.text()); if (!validSave(sv)) throw new Error(); sv.savedAt = Date.now(); resumeSave(sv); }
-    catch { toast("Couldn't read that file. Pick a CashFlow save (.json)."); }
+    catch { toast("Couldn't read that file. Pick a Rat Race Royale save (.json)."); }
   };
 }
 
@@ -356,6 +368,9 @@ document.addEventListener("click", (e) => {
     case "copyLink": navigator.clipboard && navigator.clipboard.writeText(b.dataset.link).then(() => toast("Invite link copied 📋"), () => toast(b.dataset.link)); break;
     case "home": if (app.net) app.net.close(); location.href = location.pathname; break;
     case "stmt": openStatement(b.dataset.id); break;
+    case "stmtMe": if (app.game) openStatement((app.game.players.find((p) => p.id === app.viewerId) || current(app.game)).id); break;
+    case "pane": app.pane = !b.dataset.pane || app.pane === b.dataset.pane ? null : b.dataset.pane; sfx.click(); if (app.game) renderGame(app); break;
+    case "PAY_DOWN": { const inp = document.querySelector(`[data-paydown="${CSS.escape(b.dataset.key)}"]`); dispatch({ type: "PAY_DOWN", key: b.dataset.key, amount: inp ? Number(inp.value) : 0 }); break; }
     case "ROLL": case "PASS": case "END_TURN": case "CHARITY": dispatch({ type: act }); break;
     case "PICK_DREAM": dispatch({ type: "PICK_DREAM", id: b.dataset.id }); break;
     case "SET_401K": dispatch({ type: "SET_401K", rate: Number(b.dataset.rate) }); break;
@@ -369,6 +384,7 @@ document.addEventListener("click", (e) => {
     case "REPAY": dispatch({ type: "REPAY", amount: Number($("loanAmt").value) }); break;
   }
 });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && app.pane && app.game) { app.pane = null; renderGame(app); } });
 document.querySelectorAll("dialog").forEach((d) => d.addEventListener("click", (e) => { if (e.target === d) d.close(); }));
 
 // ------------------------------------------------------------------ boot

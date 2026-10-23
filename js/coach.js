@@ -25,13 +25,13 @@ export function initCoach() {
 export function advice(g, p) {
   const s = statement(p, g.goal);
   const out = [];
-  const perMonth = (pp) => (pp * 26) / 12;
   if (p.fast) {
-    out.push(`You're on the Fast Track 🚀 Each CashFlow Day pays ${money(p.fast.base + p.fast.added)}. Your dream costs ${money(p.dream.cost)}, so you need ${money(Math.max(0, p.dream.cost - p.cash))} more.`);
-    out.push("Lawsuits and audits take a % of your CASH, so buying businesses protects money and grows CashFlow Day at the same time.");
+    out.push(`You're on the Fast Track 🚀 Each Payout Day pays ${money(p.fast.base + p.fast.added)}. Your dream costs ${money(p.dream.cost)}, so you need ${money(Math.max(0, p.dream.cost - p.cash))} more.`);
+    out.push("Lawsuits and audits take a % of your CASH, so buying businesses protects money and grows Payout Day at the same time.");
     return out;
   }
-  if (s.netPay < 0) out.push(`🚨 Your payday is negative (${money(s.netPay)}). Every check makes you poorer. First priority: cut an expense (pay off a debt) or add income.`);
+  if (s.monthlyCashflow < 0) out.push(`🚨 Your monthly cashflow is negative (${money(s.monthlyCashflow)}): two paychecks don't cover the bills on the 1st. First priority: cut a bill (pay down a debt) or add income.`);
+  else if (p.cash < s.billsTotal) out.push(`🧾 Heads up: ${money(s.billsTotal)} in bills hits on the 1st and you have ${money(p.cash)}. Keep a cushion so you don't miss a payment (−30 credit).`);
   const debts = Object.entries(p.debts).filter(([k]) => k !== "mortgage").map(([k, d]) => ({ k, ...d })).sort((a, b) => b.rate - a.rate);
   const payable = debts.find((d) => d.balance <= p.cash);
   if (payable && payable.rate >= 0.1) out.push(`✂️ Pay off your ${payable.label.toLowerCase()} (${money(payable.balance)} at ${(payable.rate * 100).toFixed(0)}%). That's a guaranteed ${(payable.rate * 100).toFixed(0)}% return and ${money(payable.monthly)} less in bills every month.`);
@@ -39,11 +39,12 @@ export function advice(g, p) {
   const sc = creditScore(p), tier = creditTier(sc), u = utilization(p);
   if (u >= 0.3 && p.debts.credit) out.push(`💳 Your credit score is ${sc} (${tier.label}) and your cards are ${Math.round(u * 100)}% maxed. Paying off the ${money(p.debts.credit.balance)} card balance drops utilization to 0% and can jump your score fast, which means cheaper mortgages.`);
   else if (sc < 670) out.push(`💳 Your credit score is ${sc} (${tier.label}), so every loan costs you extra (+${(tier.mortgage * 100).toFixed(1)}% on mortgages). Avoid missed payments: keep enough cash so bills never trigger an emergency loan.`);
-  else if (p.credit && p.credit.late) out.push(`💳 Credit ${sc}. You've had ${p.credit.late} missed payment${p.credit.late > 1 ? "s" : ""}. Each on-time paycheck slowly rebuilds it.`);
+  else if (p.credit && p.credit.late) out.push(`💳 Credit ${sc}. You've had ${p.credit.late} missed payment${p.credit.late > 1 ? "s" : ""}. Every month of on-time bills slowly rebuilds it.`);
   if (p.job.employed && p.job.match && p.k401Rate < 0.06) out.push(`🏦 Your employer matches 50% of your 401(k) up to 6% of pay, and you're at ${Math.round(p.k401Rate * 100)}%. Bumping to 6% is free money for retirement (it doesn't count toward escaping, though).`);
   if (!p.job.employed) out.push(`💼 You're between jobs. Benefits last ${p.job.benefitsLeft} more checks. Your hiring odds go up every turn, and Opportunity tiles can bring job offers.`);
   const gap = s.target - s.passive;
-  if (gap > 0) out.push(`🐀 To escape you need ${money(gap)} more passive income per check (≈ ${money(perMonth(gap))}/month). Look for deals with positive cashflow and a cash-on-cash return above 10%.`);
+  if (gap > 0) out.push(`🐀 To escape you need ${money(gap)} more passive income a month. Look for deals with positive cashflow and a cash-on-cash return above 10%.`);
+  if (p.tax && p.tax.pending) out.push(p.tax.pending.amount >= 0 ? `📬 A ${money(p.tax.pending.amount)} tax refund lands in April. Have a plan for it: a down payment beats a doodad.` : `📬 You'll owe ${money(-p.tax.pending.amount)} in taxes in April. Set it aside now.`);
   if (p.cash > 15000 && s.passive < s.target * 0.5) out.push(`💰 You have ${money(p.cash)} sitting in cash. Cash doesn't pay you. Consider a big deal next time you land on Opportunity.`);
   const neg = p.properties.filter((a) => a.cashflow < 0);
   if (neg.length) out.push(`⚠️ ${neg.map((a) => a.name).join(", ")} ${neg.length > 1 ? "lose" : "loses"} money every month. Watch for a buyer offer (📨) to sell at a good price.`);

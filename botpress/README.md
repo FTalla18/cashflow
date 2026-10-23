@@ -1,4 +1,4 @@
-# "Cash": the CashFlow game's AI coach (Botpress)
+# "Cash": the Rat Race Royale AI coach (Botpress)
 
 The game already has a built-in coach (the **Ask Cash 💬** button reads your financial statement and gives your next best moves, with no AI or internet needed). This folder sets up the optional **AI chat** version on Botpress, the same way Vee works on Velora.
 

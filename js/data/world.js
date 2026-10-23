@@ -115,10 +115,10 @@ export const DREAMS = [
 ];
 
 export const FAST_BOARD = [
-  "CashFlow Day", "Business", "Dream", "Business", "Lawsuit", "Business",
-  "CashFlow Day", "Business", "Dream", "Tax Audit", "Business", "Business",
-  "CashFlow Day", "Business", "Dream", "Business", "Market Crash", "Business",
-  "CashFlow Day", "Business", "Dream", "Business", "Lawsuit", "Business",
+  "Payout Day", "Business", "Dream", "Business", "Lawsuit", "Business",
+  "Payout Day", "Business", "Dream", "Tax Audit", "Business", "Business",
+  "Payout Day", "Business", "Dream", "Business", "Market Crash", "Business",
+  "Payout Day", "Business", "Dream", "Business", "Lawsuit", "Business",
 ];
 
 export const FAST_VENTURES = [
@@ -148,6 +148,10 @@ export const TIPS = {
   credit_util: "💡 Money tip: credit utilization (card balance ÷ credit limit) is about 30% of your score. Under 30% is good, under 10% is elite. Paying the card off is the fastest credit glow-up.",
   credit_inquiry: "💡 Money tip: applying for a loan triggers a hard inquiry, a small, temporary dip in your score. Don't apply for credit you don't need.",
   credit_rates: "💡 Money tip: your credit score just changed your interest rate. On a $300k mortgage, 1% higher costs about $200 more per month, or $70k+ over 30 years.",
+  bills: "💡 Money tip: you get paid every 2 weeks, but rent, car payments and utilities hit once a month. Two paychecks cover a month, and twice a year a month has THREE paychecks. Smart budgeters treat that third check as a bonus for savings or debt.",
+  tax_refund: "💡 Money tip: a big refund means you overpaid all year, an interest-free loan to the government. You can adjust your W-4 to keep more of each paycheck instead.",
+  tax_bill: "💡 Money tip: rental, business and dividend income have no withholding. Investors set money aside (or pay quarterly estimates) so April doesn't hurt.",
+  pay_down: "💡 Money tip: extra payments cut your balance and the interest you pay. In real life, extra payments on a car or mortgage usually shorten the loan instead of lowering the bill, unless you ask the lender to 'recast' it.",
   negative_paycheck: "💡 Money tip: when expenses beat income, debt grows fast. Cut a big expense or pay off a debt to stop the bleeding.",
 };
 

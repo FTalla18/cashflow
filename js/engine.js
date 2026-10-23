@@ -1,16 +1,21 @@
 // =====================================================================================
-// CashFlow game engine (deterministic)
+// Rat Race Royale game engine (deterministic)
 //
 //   newGame({ seed, players: [{ id, name }], length, taxYear })  -> state
 //   apply(state, action)                                          -> new state (throws GameError if not allowed)
-//   statement(player, goal)                                       -> the player's financial statement (per paycheck)
+//   statement(player, goal)                                       -> the player's financial statement
+//
+// Money calendar: paychecks come every 2 weeks (each Pay Day = one paycheck). Monthly bills (housing, car,
+// loans, cards, utilities, child care) and passive income (rent, dividends, business profit) happen on the 1st of
+// each month, i.e. on the first paycheck of a new month. Federal tax withheld from paychecks is reconciled
+// once a year: refund (or bill) arrives in April.
 //
 // The state is plain JSON. All randomness comes from state.rng (a seeded stream), so the same seed
 // and the same list of actions always produce exactly the same game, on every player's screen.
 // Money: statement amounts are PER BI-WEEKLY PAYCHECK unless named *monthly / *annual.
 // =====================================================================================
 import { Rng } from "./rng.js";
-import { paycheckTaxes, PAYCHECKS_PER_YEAR as PP, FILING_LABEL, bestTaxYear } from "./tax.js";
+import { paycheckTaxes, PAYCHECKS_PER_YEAR as PP, FILING_LABEL, bestTaxYear, marginalRate, taxableIncome, refundableChildCredit } from "./tax.js";
 import { PROFESSIONS } from "./data/professions.js";
 import { STOCKS, REAL_ESTATE_STORIES, BUSINESS_STORIES } from "./data/stories.js";
 import { CITIES, ECONOMIES, CARS, SPENDING, ECON_EVENTS, PROPERTY_TYPES, STOCK_PRICING, DREAMS, FAST_BOARD, FAST_VENTURES, TIPS, BADGES } from "./data/world.js";
@@ -29,7 +34,14 @@ const BENEFIT_CAP = 1100;      // max unemployment benefit per paycheck
 const BENEFIT_CHECKS = 12;     // ~6 months of benefits
 const MAX_CHILDREN = 4;
 const RAISE_EVERY = 12;        // paychecks between "annual" reviews (game time is compressed)
-const HIST = 24;               // stock price history kept for the ticker
+const HIST = 48;               // stock price history kept for the ticker (4 points per round)
+export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** Calendar month index (0 = January of the first tax year) for a number of paychecks received. */
+export const monthOf = (checks) => Math.floor((checks * 14) / 30.4375);
+/** A player's date on their own money timeline. */
+export function playerDate(state, p) { return new Date(Date.UTC(state.taxYear, 0, 1) + (p.checks || 0) * 14 * 864e5); }
+/** Paychecks until the next 1st-of-the-month bills. */
+export function checksToBills(p) { let k = 1; while (monthOf((p.checks || 0) + k) <= (p.month || 0)) k++; return k; }
 
 export class GameError extends Error {}
 const r2 = (x) => Math.round(x * 100) / 100;
@@ -111,13 +123,20 @@ function makeMarket(rng, econ) {
   for (const st of STOCKS) {
     const pr = STOCK_PRICING[st.name] || { range: [5, 50], yield: 0 };
     const price = Math.max(1, Math.round(rng.tri(pr.range[0], (pr.range[0] + pr.range[1]) / 2, pr.range[1]) * econ.stocks));
-    m[st.name] = { price, hist: [price], yield: pr.yield, range: pr.range, fund: false };
+    m[st.name] = { price, hist: backfill(rng, price, 16, 0.03), yield: pr.yield, range: pr.range, fund: false };
   }
   for (const f of FUNDS) {
     const price = Math.round(rng.tri(f.range[0], (f.range[0] + f.range[1]) / 2, f.range[1]));
-    m[f.ticker] = { price, hist: [price], yield: f.yield, range: f.range, fund: true };
+    m[f.ticker] = { price, hist: backfill(rng, price, 16, 0.008), yield: f.yield, range: f.range, fund: true };
   }
   return m;
+}
+
+/** A short made-up past (random walk ending at today's value) so charts aren't flat on round 1. */
+function backfill(rng, end, n, vol) {
+  const out = [end];
+  for (let i = 1; i < n; i++) out.unshift(Math.max(1, r2(out[0] * rng.tri(1 - vol, 1, 1 + vol))));
+  return out;
 }
 
 function setPrice(state, ticker, price) {
@@ -134,7 +153,15 @@ function marketDrift(state, rng) {
     let m = t.fund ? rng.tri(0.985, 1.004, 1.02) : rng.tri(0.94, 1.0, 1.07) * (0.995 + (state.economy.stocks - 1) * 0.02);
     const mid = (t.range[0] + t.range[1]) / 2;
     m *= 1 + clamp((mid / t.price - 1) * 0.05, -0.04, 0.04); // prices drift back toward their normal range over time
-    setPrice(state, ticker, t.price * m);
+    // 4 "weekly" closes per round, with day-to-day noise, so charts look like real price action
+    const start = t.price, steps = 4;
+    for (let k = 1; k <= steps; k++) {
+      const noise = t.fund ? rng.tri(0.994, 1, 1.006) : rng.tri(0.975, 1, 1.025);
+      const v = start * Math.pow(m, k / steps) * (k < steps ? noise : 1);
+      t.price = Math.max(1, Math.round(v * 100) / 100);
+      if (k < steps) { t.hist.push(Math.max(1, r2(v))); if (t.hist.length > HIST) t.hist.shift(); }
+    }
+    setPrice(state, ticker, start * m);
   }
 }
 
@@ -173,7 +200,8 @@ function makePlayer(rng, { id, name }, index, econ, taxYear) {
     const balance = nice(price * rng.tri(0.5, 0.8, 0.95), 100);
     const rate = clamp(econ.mortgage + rng.tri(-0.025, 0, 0.01), 0.03, 0.09);
     home = { price, rate };
-    debts.mortgage = { label: "Home mortgage", balance, monthly: Math.round(amortize(balance, rate, 30) + (price * 0.016) / 12), rate };
+    const escrow = Math.round((price * 0.016) / 12); // property tax + insurance
+    debts.mortgage = { label: "Home mortgage", balance, monthly: Math.round(amortize(balance, rate, 30)) + escrow, escrow, rate };
   } else {
     // rent: what the city charges, but people pick places they can (mostly) afford: ~22–38% of gross pay
     living.rent = { label: "Rent", monthly: nice(clamp(place.home * 0.0048 * rng.tri(0.7, 1, 1.3), 700 * place.col, Math.max(900, (household / 12) * rng.tri(0.22, 0.3, 0.38))), 10) };
@@ -226,10 +254,18 @@ function makePlayer(rng, { id, name }, index, econ, taxYear) {
     stocks: [], properties: [], debts, living, nextId: 1, paychecks: 0,
     dream: DREAMS.find((d) => d.id === dreamOptions[0]), dreamOptions, fast: null,
     credit: { base: creditBase, limit: ccLimit, hist: [], onTime: 0, late: 0 },
+    checks: 0, month: 0,
+    // w = how much extra federal tax the W-4 withholds (most people over-withhold a little → refund)
+    tax: { year: taxYear, w: r2(prof.gig ? rng.tri(-0.1, 0, 0.12) : rng.tri(-0.05, 0.12, 0.35)), withheld: 0, owed: 0, passive: 0, checks: 0, pending: null },
     badges: [], tips: [], stats: { bought: 0, sold: 0, profit: 0, debtPaid: 0, doodads: 0, charity: 0, interestBorrowed: 0, best: null, layoffs: 0, raises: 0 },
   };
   const s = statement(p);
-  p.credit.hist.push(creditScore(p));
+  p.credit.hist = backfill(rng, creditScore(p), 6, 0.006).map(Math.round); // last 6 monthly reports
+  // Last year's tax return, filed already: refund (or bill) lands in April.
+  if (s.tax) {
+    const share = employed ? 1 : 0.5;
+    p.tax.pending = { year: taxYear - 1, amount: Math.round((s.tax.withheld - s.tax.owed) * PP * share + s.tax.refundable * share), prior: true };
+  }
   p.cash = Math.max(300, nice(employed ? Math.abs(s.netPay) * rng.tri(0.5, 1.5, 4) : rng.tri(1000, 3000, 8000), 50));
   return p;
 }
@@ -268,75 +304,79 @@ function creditChange(state, p, delta, why) {
   const before = creditScore(p);
   p.credit.base = clamp(p.credit.base + delta, 250, 870);
   const after = creditScore(p);
-  creditMark(p);
   if (why && after !== before) log(state, `${after > before ? "📈" : "📉"} ${p.name}'s credit score ${after > before ? "rose" : "fell"} to ${after} (${why}).`, after > before ? "credit" : "warn", p.id, "credit");
   if (after >= 800) badge(state, p, "credit_star");
 }
-function creditMark(p) {
-  const sc = creditScore(p);
-  const h = p.credit.hist;
-  if (h[h.length - 1] !== sc) { h.push(sc); if (h.length > HIST) h.shift(); }
-}
+
 
 // ---------------------------------------------------------------- financial statement
-/** The player's financial statement, PER PAYCHECK. goal = share of living expenses passive income must cover. */
+/**
+ * The player's financial statement, split the way real money moves:
+ *   paycheck (every 2 weeks): gross pay → taxes, 401(k), HSA, employer health insurance → take-home
+ *   monthly (on the 1st): passive income in, bills out (housing, car, loans, cards, utilities, child care)
+ * passive, livingExpenses, target and monthlyCashflow are MONTHLY. netPay = average cash gained per paycheck.
+ * goal = share of living expenses passive income must cover.
+ */
 export function statement(p, goal = 1) {
-  const income = [], expenses = [], notes = [];
-  const gross = p.job.employed ? p.job.annual / PP : 0;
+  const paycheck = [], deductions = [], monthlyIn = [], bills = [], notes = [];
   const sp = p.life.spouse;
-  let taxes = null;
-  if (p.job.employed) income.push({ label: p.job.gig ? `${p.job.title} (avg, varies)` : `${p.job.title} salary`, amount: gross, kind: "salary" });
-  if (sp) income.push({ label: `Spouse's pay (${sp.title})`, amount: sp.annual / PP, kind: "salary" });
+  if (p.job.employed) paycheck.push({ label: p.job.gig ? `${p.job.title} (avg, varies)` : `${p.job.title} salary`, amount: r2(p.job.annual / PP), kind: "salary" });
+  if (sp) paycheck.push({ label: `Spouse's pay (${sp.title})`, amount: r2(sp.annual / PP), kind: "salary" });
+  if (!p.job.employed && p.job.benefitsLeft > 0) paycheck.push({ label: `Unemployment benefits (${p.job.benefitsLeft} checks left)`, amount: p.job.benefit, kind: "benefits" });
+
   const wages = (p.job.employed ? p.job.annual : 0) + (sp ? sp.annual : 0);
+  let tax = null;
   if (wages > 0) {
     const year = p.taxYear;
-    taxes = paycheckTaxes(wages, { status: p.life.filing, stateRate: p.life.stateRate, k401Annual: p.job.employed ? p.job.annual * p.k401Rate : 0, hsaAnnual: p.hsaAnnual, children: p.life.children, year });
+    const opts = { status: p.life.filing, stateRate: p.life.stateRate, k401Annual: p.job.employed ? p.job.annual * p.k401Rate : 0, hsaAnnual: p.hsaAnnual, children: p.life.children, year };
+    const t = paycheckTaxes(wages, opts);
     // Social Security is capped per worker, not per household: recompute FICA per earner.
     const fica = (w) => paycheckTaxes(w, { status: "single", year });
-    if (sp) { const a = p.job.employed ? fica(p.job.annual) : { socialSecurity: 0, medicare: 0 }, b = fica(sp.annual); taxes.socialSecurity = r2(a.socialSecurity + b.socialSecurity); taxes.medicare = r2(Math.max(taxes.medicare, a.medicare + b.medicare)); }
-    if (p.job.employed && p.job.gig) { const own = fica(p.job.annual); taxes.socialSecurity = r2(taxes.socialSecurity + own.socialSecurity); taxes.medicare = r2(taxes.medicare + own.medicare); }
-    taxes.totalTax = r2(taxes.federal + taxes.socialSecurity + taxes.medicare + taxes.state);
+    if (sp) { const a = p.job.employed ? fica(p.job.annual) : { socialSecurity: 0, medicare: 0 }, b = fica(sp.annual); t.socialSecurity = r2(a.socialSecurity + b.socialSecurity); t.medicare = r2(Math.max(t.medicare, a.medicare + b.medicare)); }
+    if (p.job.employed && p.job.gig) { const own = fica(p.job.annual); t.socialSecurity = r2(t.socialSecurity + own.socialSecurity); t.medicare = r2(t.medicare + own.medicare); }
+    const w = p.tax ? p.tax.w : 0;
+    const withheld = r2(Math.max(0, t.federal * (1 + w)));
+    tax = { owed: t.federal, withheld, wages, opts, refundable: refundableChildCredit(wages, opts) };
+    deductions.push({ label: p.job.gig ? "Federal income tax (set aside for quarterly estimates)" : sp ? "Federal income tax withheld (joint)" : "Federal income tax withheld", amount: withheld, kind: "tax" });
+    deductions.push({ label: p.job.gig ? "Self-employment tax (SS + Medicare)" : "Social Security + Medicare (FICA)", amount: r2(t.socialSecurity + t.medicare), kind: "tax" });
+    if (t.state) deductions.push({ label: `State & local tax (${p.life.state})`, amount: t.state, kind: "tax" });
+    if (t.k401) deductions.push({ label: `401(k) contribution (${Math.round(p.k401Rate * 100)}%)`, amount: t.k401, kind: "savings", account: "401k" });
+    if (t.hsa) deductions.push({ label: "HSA contribution", amount: t.hsa, kind: "savings", account: "hsa" });
   }
-  if (!p.job.employed && p.job.benefitsLeft > 0) income.push({ label: `Unemployment benefits (${p.job.benefitsLeft} checks left)`, amount: p.job.benefit, kind: "benefits" });
+  // Employer health plans come out of every paycheck; without a job you pay the insurer monthly.
+  const health = p.living.health ? p.living.health.monthly : 0;
+  if (health && p.job.employed) deductions.push({ label: "Health insurance (employer plan)", amount: r2(toPP(health)), kind: "insurance" });
 
-  const passiveItems = [];
-  for (const s of p.stocks) if (s.div > 0) passiveItems.push({ label: `${s.ticker} dividends (${s.shares} sh)`, amount: (s.shares * s.div) / PP, kind: "passive" });
-  for (const a of p.properties) passiveItems.push({ label: a.name, amount: toPP(a.cashflow), kind: "passive" });
-  income.push(...passiveItems);
+  for (const st of p.stocks) if (st.div > 0) monthlyIn.push({ label: `${st.ticker} dividends (${st.shares} sh)`, amount: r2((st.shares * st.div) / 12), kind: "passive", taxable: 1 });
+  for (const a of p.properties) monthlyIn.push({ label: a.name, amount: a.cashflow, kind: "passive", taxable: a.category === "re" ? 0.5 : 1 }); // depreciation shelters ~half of rental income
+  for (const d of Object.values(p.debts)) if (d.monthly > 0) bills.push({ label: d.label, amount: d.monthly, kind: "debt" });
+  for (const [k, l] of Object.entries(p.living)) if (k !== "health" || !p.job.employed) bills.push({ label: k === "health" ? "Health insurance (individual plan)" : l.label, amount: l.monthly, kind: "living" });
 
-  if (taxes) {
-    expenses.push({ label: sp ? "Federal income tax (joint)" : "Federal income tax", amount: taxes.federal, kind: "tax" });
-    expenses.push({ label: p.job.gig ? "Self-employment tax (SS + Medicare)" : "Social Security + Medicare (FICA)", amount: r2(taxes.socialSecurity + taxes.medicare), kind: "tax" });
-    if (taxes.state) expenses.push({ label: `State & local tax (${p.life.state})`, amount: taxes.state, kind: "tax" });
-    if (taxes.k401) expenses.push({ label: `401(k) contribution (${Math.round(p.k401Rate * 100)}%)`, amount: taxes.k401, kind: "savings" });
-    if (taxes.hsa) expenses.push({ label: "HSA contribution", amount: taxes.hsa, kind: "savings" });
-  }
+  const sum = (arr) => r2(arr.reduce((t, x) => t + x.amount, 0));
+  const grossPay = sum(paycheck), takeHome = r2(grossPay - sum(deductions));
+  const passive = sum(monthlyIn), billsTotal = sum(bills);
+  const livingExpenses = r2(billsTotal + (p.job.employed ? health : 0));
+  const monthlyCashflow = r2((takeHome * PP) / 12 + passive - billsTotal);
   const match = employerMatch(p);
   if (match > 0) notes.push({ label: "Employer 401(k) match (free money → retirement)", amount: match });
-  for (const d of Object.values(p.debts)) if (d.monthly > 0) expenses.push({ label: d.label, amount: toPP(d.monthly), kind: "living" });
-  for (const l of Object.values(p.living)) expenses.push({ label: l.label, amount: toPP(l.monthly), kind: "living" });
-
-  const sum = (arr) => r2(arr.reduce((s, x) => s + x.amount, 0));
-  const passive = sum(passiveItems);
-  const livingExpenses = sum(expenses.filter((e) => e.kind === "living"));
-  const totalIncome = sum(income);
-  const totalExpenses = sum(expenses);
   const assets = [
     { label: "Cash", value: p.cash },
     { label: "401(k) / retirement", value: p.retirement },
     ...(p.hsaBalance ? [{ label: "HSA", value: p.hsaBalance }] : []),
     ...(p.life.home ? [{ label: "Home", value: p.life.home.price }] : []),
-    ...p.stocks.map((s) => ({ label: `${s.ticker} × ${s.shares}`, value: s.shares * s.price })),
+    ...p.stocks.map((st) => ({ label: `${st.ticker} × ${st.shares}`, value: st.shares * st.price })),
     ...p.properties.map((a) => ({ label: a.name, value: a.value })),
   ];
   const liabilities = [
     ...Object.values(p.debts).map((d) => ({ label: d.label, value: d.balance })),
     ...p.properties.filter((a) => a.loan > 0).map((a) => ({ label: `${a.name} loan`, value: a.loan })),
   ];
-  const netWorth = r2(assets.reduce((s, a) => s + a.value, 0) - liabilities.reduce((s, l) => s + l.value, 0));
+  const netWorth = r2(assets.reduce((t, a) => t + a.value, 0) - liabilities.reduce((t, l) => t + l.value, 0));
   return {
-    income, expenses, notes, passive, livingExpenses, totalIncome, totalExpenses, match,
-    netPay: r2(totalIncome - totalExpenses), assets, liabilities, netWorth,
+    paycheck, deductions, monthlyIn, bills, notes, tax, match,
+    grossPay, takeHome, passive, billsTotal, livingExpenses, monthlyCashflow,
+    netPay: r2((monthlyCashflow * 12) / PP), totalIncome: r2(grossPay + (passive * 12) / PP),
+    assets, liabilities, netWorth,
     progress: livingExpenses > 0 ? clamp(passive / (livingExpenses * goal), 0, 1) : 0,
     target: r2(livingExpenses * goal),
     free: passive > 0 && passive >= livingExpenses * goal,
@@ -407,12 +447,11 @@ function checkProgress(state, p) {
     narrate(state, "win", { name: p.name, passive: money(s.passive), exp: money(state.goal < 1 ? s.target : s.livingExpenses) }, p.id);
     return;
   }
-  // Classic: move to the Fast Track. CashFlow Day pays 100x your monthly passive income (classic rule).
-  const monthlyPassive = (s.passive * PP) / 12;
-  p.fast = { pos: 0, base: nice(monthlyPassive * 100, 100), added: 0, ventures: [] };
+  // Classic: move to the Fast Track. Payout Day pays 100x your monthly passive income (classic rule).
+  p.fast = { pos: 0, base: nice(s.passive * 100, 100), added: 0, ventures: [] };
   p.cash = r2(p.cash + p.fast.base);
   narrate(state, "escaped", { name: p.name, passive: money(s.passive), dream: `${p.dream.icon} ${p.dream.name} (${money(p.dream.cost)})` }, p.id);
-  log(state, `${p.name} starts the Fast Track with ${money(p.fast.base)} (CashFlow Day = 100× monthly passive income). Win by buying the dream, or by adding ${money(FAST_WIN_CASHFLOW)}/mo of cashflow.`, "good", p.id);
+  log(state, `${p.name} starts the Fast Track with ${money(p.fast.base)} (Payout Day = 100× monthly passive income). Win by buying the dream, or by adding ${money(FAST_WIN_CASHFLOW)}/mo of cashflow.`, "good", p.id);
 }
 const checkWin = checkProgress;
 
@@ -428,7 +467,8 @@ function makeStockCard(state, rng) {
   const [lo, hi] = range52(t);
   // Card prices land anywhere in the 52-week range, a bit more often in the lower half, so patient buyers
   // get real bargains and the top of the range is a warning sign (not the default).
-  const price = Math.max(1, Math.round(lo + Math.pow(rng.next(), 1.25) * (hi - lo)));
+  // ...but news moves a stock at most ±35% at once
+  const price = Math.max(1, Math.round(clamp(lo + Math.pow(rng.next(), 1.6) * (hi - lo), t.price * 0.62, t.price * 1.35)));
   const bullish = price >= t.price;
   const story = st.stories[bullish ? rng.int(0, 1) : 2];
   setPrice(state, st.name, price);
@@ -564,16 +604,16 @@ function resolveTile(state, rng, p) {
       // Some are real layoffs. Gig workers just have a slow stretch.
       if (p.job.employed && !p.job.gig && rng.chance(0.4)) layoff(state, p, true);
       else if (p.job.employed) {
-        const s = statement(p);
-        payCash(state, p, s.livingExpenses, p.job.gig ? "a slow stretch" : "a furlough");
+        const s = statement(p), hit = nice((s.livingExpenses * 12) / PP, 10);
+        payCash(state, p, hit, p.job.gig ? "a slow stretch" : "a furlough");
         p.skip = 1;
         log(state, p.job.gig
-          ? `📉 Slow stretch: gigs dried up. ${p.name} covers one check of expenses (${money(s.livingExpenses)}) and sits out a turn.`
-          : `📉 Furlough: ${p.name}'s company cut hours for a few weeks. Pay one check of expenses (${money(s.livingExpenses)}) and sit out a turn, but the job is safe.`, "warn", p.id, "downsized");
+          ? `📉 Slow stretch: gigs dried up. ${p.name} covers two weeks of expenses (${money(hit)}) and sits out a turn.`
+          : `📉 Furlough: ${p.name}'s company cut hours for a few weeks. Pay two weeks of expenses (${money(hit)}) and sit out a turn, but the job is safe.`, "warn", p.id, "downsized");
       } else {
-        const s = statement(p);
-        payCash(state, p, s.livingExpenses, "a rough patch");
-        log(state, `${p.name} is already job hunting. Tough break: pay one check of expenses (${money(s.livingExpenses)}).`, "warn", p.id);
+        const hit = nice((statement(p).livingExpenses * 12) / PP, 10);
+        payCash(state, p, hit, "a rough patch");
+        log(state, `${p.name} is already job hunting. Tough break: pay two weeks of expenses (${money(hit)}).`, "warn", p.id);
       }
       state.phase = "manage";
       break;
@@ -605,7 +645,7 @@ function resolveFastTile(state, rng, p) {
     case "Lawsuit": { const amt = nice(p.cash / 2, 1); p.cash = r2(p.cash - amt); narrate(state, "lawsuit", { name: p.name, amt: money(amt) }, p.id); break; }
     case "Tax Audit": { const amt = nice(p.cash * 0.3, 1); p.cash = r2(p.cash - amt); narrate(state, "audit", { name: p.name, amt: money(amt) }, p.id); break; }
     case "Market Crash": { const amt = nice(p.cash * 0.25, 1); p.cash = r2(p.cash - amt); narrate(state, "fast_crash", { name: p.name, amt: money(amt) }, p.id); break; }
-    default: break; // CashFlow Day: collected while moving
+    default: break; // Payout Day: collected while moving
   }
 }
 
@@ -657,21 +697,20 @@ function econEvent(state, rng) {
 // ---------------------------------------------------------------- paycheck
 function payday(state, rng, p) {
   const s = statement(p);
-  let net = s.netPay;
+  let take = s.takeHome;
   if (p.job.employed && p.job.gig) {
     const swing = r2(rng.tri(0.6, 1, 1.4));
-    net = r2(net + (swing - 1) * (p.job.annual / PP));
+    take = r2(take + (swing - 1) * (p.job.annual / PP));
     log(state, `${p.name}'s gig income this check: ${Math.round(swing * 100)}% of average.`, "info", p.id);
   }
   // pre-tax savings (and the employer match) land in retirement / HSA accounts
-  for (const e of s.expenses) { if (e.label.startsWith("401(k)")) p.retirement = r2(p.retirement + e.amount); if (e.label === "HSA contribution") p.hsaBalance = r2(p.hsaBalance + e.amount); }
+  for (const d of s.deductions) { if (d.account === "401k") p.retirement = r2(p.retirement + d.amount); if (d.account === "hsa") p.hsaBalance = r2(p.hsaBalance + d.amount); }
   if (s.match) { p.retirement = r2(p.retirement + s.match); tip(state, p, "match"); }
   else if (p.job.employed && p.job.match && !p.k401Rate) tip(state, p, "no_match");
-  if (net >= 0) { p.cash = r2(p.cash + net); narrate(state, "payday", { name: p.name, amt: money(net) }, p.id); }
-  else { narrate(state, "payday_neg", { name: p.name, amt: money(-net) }, p.id); payCash(state, p, -net, "bills"); tip(state, p, "negative_paycheck"); }
-  // Every check where all the bills got paid without emergency borrowing builds payment history.
-  if (p.credit && !p.credit.missed) { p.credit.onTime += 1; creditChange(state, p, 2, null); }
-  if (p.credit) p.credit.missed = false;
+  if (take > 0) { p.cash = r2(p.cash + take); narrate(state, "payday", { name: p.name, amt: money(take) }, p.id); }
+  else if (take < 0) payCash(state, p, -take, "a short paycheck");
+  else log(state, `💤 Pay Day, but ${p.name} has no paycheck coming in right now.`, "warn", p.id, "payday_none");
+  if (s.tax && p.tax) { p.tax.withheld = r2(p.tax.withheld + s.tax.withheld); p.tax.owed = r2(p.tax.owed + s.tax.owed); p.tax.refundable = r2((p.tax.refundable || 0) + s.tax.refundable / PP); }
   if (!p.job.employed) {
     p.job.checksUnemployed += 1;
     if (p.job.benefitsLeft > 0) p.job.benefitsLeft -= 1;
@@ -682,6 +721,59 @@ function payday(state, rng, p) {
       p.stats.raises += 1;
       narrate(state, "raise", { name: p.name, pct: `${(pct * 100).toFixed(1)}%`, amt: money(p.job.annual) }, p.id);
     }
+  }
+  // the calendar moves 2 weeks; a new month means bills and passive income
+  p.checks = (p.checks || 0) + 1;
+  if (p.month === undefined) p.month = monthOf(p.checks - 1);
+  while (p.month < monthOf(p.checks)) { p.month += 1; newMonth(state, rng, p); }
+}
+
+/** The 1st of the month: rent/mortgage, car, loans, cards, utilities, child care go out; passive income comes in. */
+function newMonth(state, rng, p) {
+  const s = statement(p);
+  const name = MONTHS[p.month % 12];
+  if (s.passive) p.cash = r2(p.cash + s.passive);
+  if (p.tax) p.tax.passive = r2(p.tax.passive + s.monthlyIn.reduce((t, x) => t + Math.max(0, x.amount) * x.taxable, 0));
+  if (p.credit) p.credit.missed = false;
+  if (s.billsTotal > 0) payCash(state, p, s.billsTotal, `${name} bills`);
+  log(state, `🧾 ${name} 1st: ${p.name} paid ${money(s.billsTotal)} in monthly bills${s.passive ? ` and collected ${money(s.passive)} from assets` : ""}.`, s.monthlyCashflow < 0 ? "warn" : "info", p.id, "bills");
+  if (s.monthlyCashflow < 0) tip(state, p, "negative_paycheck");
+  tip(state, p, "bills");
+  if (p.credit) {
+    if (!p.credit.missed) { p.credit.onTime += 1; creditChange(state, p, 4, null); }
+    // the bureaus get a new report once a month (scores wiggle a few points with your card balance)
+    p.credit.hist.push(clamp(creditScore(p) + rng.int(-3, 3), 300, 850));
+    if (p.credit.hist.length > 12) p.credit.hist.shift();
+  }
+  if (p.tax) {
+    if (p.month % 12 === 0) closeTaxYear(state, p);
+    if (p.month % 12 === 3 && p.tax.pending) settleTax(state, p);
+  }
+}
+
+/** Dec 31: compare what was withheld with what was actually owed (wages + investment income). */
+function closeTaxYear(state, p) {
+  const t = p.tax, s = statement(p);
+  const taxable = s.tax ? taxableIncome(s.tax.wages, s.tax.opts) : 0;
+  const rate = marginalRate(taxable + t.passive, p.life.filing, t.year);
+  const passiveTax = Math.max(0, t.passive) * rate;
+  const amount = Math.round(t.withheld - t.owed - passiveTax + (t.refundable || 0));
+  t.pending = { year: t.year, amount, withheld: Math.round(t.withheld), owed: Math.round(t.owed + passiveTax), passiveTax: Math.round(passiveTax) };
+  log(state, `📅 Tax year ${t.year} closed for ${p.name}: ${money(t.pending.withheld)} withheld vs ${money(t.pending.owed)} owed${passiveTax ? ` (incl. ${money(passiveTax)} on investment income)` : ""}${t.refundable ? `, plus ${money(t.refundable)} refundable child credit` : ""}. ${amount >= 0 ? `Refund of ${money(amount)}` : `Bill of ${money(-amount)}`} due in April.`, "info", p.id, "tax_close");
+  t.year += 1; t.withheld = 0; t.owed = 0; t.passive = 0; t.refundable = 0;
+}
+
+function settleTax(state, p) {
+  const { year, amount } = p.tax.pending;
+  p.tax.pending = null;
+  if (amount >= 0) {
+    p.cash = r2(p.cash + amount);
+    narrate(state, "tax_refund", { name: p.name, amt: money(amount), year }, p.id);
+    tip(state, p, "tax_refund");
+  } else {
+    narrate(state, "tax_bill", { name: p.name, amt: money(-amount), year }, p.id);
+    payCash(state, p, -amount, `${year} taxes`);
+    tip(state, p, "tax_bill");
   }
 }
 
@@ -750,6 +842,7 @@ function nextShare(state) {
 export function apply(prev, action) {
   if (prev.phase === "over") throw new GameError("The game is over.");
   const state = JSON.parse(JSON.stringify(prev));
+  for (const q of state.players) { if (q.checks === undefined) { q.checks = 0; q.month = 0; } if (!q.tax) q.tax = { year: state.taxYear, w: 0.08, withheld: 0, owed: 0, passive: 0, checks: 0, pending: null }; }
   for (const q of state.players) if (!q.credit) q.credit = { base: 680, limit: 5000, hist: [680], onTime: 0, late: 0 };
   const rng = Rng.from(state.rng);
   const p = current(state);
@@ -803,7 +896,7 @@ export function apply(prev, action) {
       if (p.fast) {
         for (let k = 1; k <= steps; k++) {
           p.fast.pos = (p.fast.pos + 1) % FAST_TILES;
-          if (FAST_BOARD[p.fast.pos] === "CashFlow Day") { const amt = p.fast.base + p.fast.added; p.cash = r2(p.cash + amt); narrate(state, "cashflow_day", { name: p.name, amt: money(amt) }, p.id); }
+          if (FAST_BOARD[p.fast.pos] === "Payout Day") { const amt = p.fast.base + p.fast.added; p.cash = r2(p.cash + amt); narrate(state, "cashflow_day", { name: p.name, amt: money(amt) }, p.id); }
         }
         log(state, `📍 ${p.name} lands on ${FAST_BOARD[p.fast.pos]} (Fast Track).`, "move", p.id);
         resolveFastTile(state, rng, p);
@@ -839,7 +932,7 @@ export function apply(prev, action) {
         break;
       }
       if (card.type === "dream") {
-        if (card.price > p.cash) throw new GameError(`Your dream costs ${money(card.price)}. You have ${money(p.cash)}. Keep collecting CashFlow Days!`);
+        if (card.price > p.cash) throw new GameError(`Your dream costs ${money(card.price)}. You have ${money(p.cash)}. Keep collecting Payout Days!`);
         p.cash = r2(p.cash - card.price);
         state.winner = p.id; state.phase = "over";
         narrate(state, "dream_win", { name: p.name, dream: `${card.icon} ${card.name}` }, p.id);
@@ -913,6 +1006,27 @@ export function apply(prev, action) {
       break;
     }
 
+    case "PAY_DOWN": {
+      if (state.phase === "roll" || state.phase === "choose") throw new GameError("Pay down debts after you roll.");
+      const d = p.debts[action.key];
+      if (!d) throw new GameError("Debt not found.");
+      let amt = Math.floor(Number(action.amount) / 100) * 100;
+      if (!(amt >= 100)) throw new GameError("Pay at least $100.");
+      if (amt >= d.balance) { action = { ...action, type: "PAYOFF" }; return apply(prev, action); }
+      if (amt > p.cash) throw new GameError(`You only have ${money(p.cash)} in cash.`);
+      const was = d.monthly, ratio = (d.balance - amt) / d.balance;
+      p.cash = r2(p.cash - amt); d.balance = r2(d.balance - amt); p.stats.debtPaid += amt;
+      d.monthly = action.key === "credit" ? Math.max(35, Math.round(d.balance * 0.03))
+        : action.key === "retail" ? Math.max(25, Math.round(d.balance * 0.05))
+        : action.key === "bank" ? Math.round(amortize(d.balance, d.rate, 5))
+        : Math.round((d.monthly - (d.escrow || 0)) * ratio) + (d.escrow || 0);
+      log(state, `✂️ ${p.name} paid ${money(amt)} toward ${d.label.toLowerCase()}. Balance ${money(d.balance)}, payment ${money(was)} → ${money(d.monthly)}/mo.`, "good", p.id, "payoff");
+      tip(state, p, action.key === "credit" ? "credit_util" : "pay_down");
+      badge(state, p, "debt_slayer");
+      checkProgress(state, p);
+      break;
+    }
+
     case "PAYOFF": {
       if (state.phase === "roll" || state.phase === "choose") throw new GameError("Pay off debts after you roll.");
       const d = p.debts[action.key];
@@ -921,9 +1035,9 @@ export function apply(prev, action) {
       p.cash = r2(p.cash - d.balance);
       delete p.debts[action.key];
       p.stats.debtPaid += d.balance;
-      if (action.key === "credit") { creditMark(p); tip(state, p, "credit_util"); log(state, `📈 Credit card paid off: utilization 0%, so ${p.name}'s credit score is now ${creditScore(p)}.`, "credit", p.id, "credit"); if (creditScore(p) >= 800) badge(state, p, "credit_star"); }
+      if (action.key === "credit") { tip(state, p, "credit_util"); log(state, `📈 Credit card paid off: utilization 0%, so ${p.name}'s credit score is now ${creditScore(p)}.`, "credit", p.id, "credit"); if (creditScore(p) >= 800) badge(state, p, "credit_star"); }
       else creditChange(state, p, 6, `${d.label.toLowerCase()} paid in full`);
-      log(state, `✂️ ${p.name} paid off ${d.label} (${money(d.balance)}). That's ${money(toPP(d.monthly))} less in expenses every paycheck.`, "good", p.id, "payoff");
+      log(state, `✂️ ${p.name} paid off ${d.label} (${money(d.balance)}). That's ${money(d.monthly)} less in bills every month.`, "good", p.id, "payoff");
       badge(state, p, "debt_slayer");
       tip(state, p, "payoff");
       checkProgress(state, p);
@@ -935,7 +1049,7 @@ export function apply(prev, action) {
       if (!(amt >= 1000)) throw new GameError("Borrow in $1,000 steps.");
       const total = (p.debts.bank ? p.debts.bank.balance : 0) + amt;
       const tier = creditTier(creditScore(p));
-      const limit = Math.max(5000, Math.round(((p.job.employed ? p.job.annual : p.job.benefit * PP) * 0.5 + statement(p).passive * PP * 3) * tier.limit));
+      const limit = Math.max(5000, Math.round(((p.job.employed ? p.job.annual : p.job.benefit * PP) * 0.5 + statement(p).passive * 12 * 3) * tier.limit));
       if (total > limit) throw new GameError(`The bank caps your loans at ${money(limit)} based on your income and ${tier.label.toLowerCase()} credit.`);
       borrow(state, p, amt);
       creditChange(state, p, -6, "hard inquiry for a new loan");
@@ -1011,7 +1125,7 @@ export function tileInfo(name) {
     "Downsizing": { icon: "📉", color: "#576574", tip: "Layoff: unemployment benefits, skip a turn" },
     "Economic Event": { icon: "📰", color: "#a29bfe", tip: "Market-wide news that affects everyone" },
     // Fast Track
-    "CashFlow Day": { icon: "💸", color: "#3cf5a0", tip: "Collect 100× your monthly passive income + your Fast Track business cashflow" },
+    "Payout Day": { icon: "💸", color: "#3cf5a0", tip: "Collect 100× your monthly passive income + your Fast Track business cashflow" },
     "Business": { icon: "🏢", color: "#4f8cff", tip: "Buy a big business: adds monthly cashflow. Add $50k/mo to win" },
     "Dream": { icon: "✨", color: "#ff4fa3", tip: "Buy YOUR dream here to win" },
     "Lawsuit": { icon: "⚖️", color: "#ff5d6c", tip: "Lose half your cash" },

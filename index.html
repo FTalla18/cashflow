@@ -3,44 +3,45 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CashFlow · Escape the Rat Race</title>
-  <meta name="description" content="A multiplayer financial-literacy board game: live a real-life character, beat the bills, buy assets, and escape the rat race." />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='%233cf5a0'/><text x='32' y='45' font-size='36' text-anchor='middle' font-family='Arial' font-weight='700' fill='%230d0b1e'>$</text></svg>" />
+  <title>Rat Race Royale</title>
+  <meta name="description" content="Rat Race Royale: a multiplayer financial-literacy board game by Freeman T. Live a real-life character, beat the bills, buy assets, and escape the rat race." />
+  <meta name="theme-color" content="#061433" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%232f7bff'/><stop offset='1' stop-color='%2322d3ee'/></linearGradient></defs><rect width='64' height='64' rx='18' fill='url(%23g)'/><text x='32' y='44' font-size='32' text-anchor='middle'>👑</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
   <header class="topbar">
-    <a class="logo" href="./" aria-label="CashFlow home"><span class="logo__mark">$</span><span>cashflow</span></a>
-    <div class="topbar__info" id="topInfo"></div>
+    <a class="logo" href="./" aria-label="Rat Race Royale home"><span class="logo__mark">👑</span><span class="logo__text">Rat Race <em>Royale</em></span></a>
+    <div class="race" id="race" aria-label="Race out of the rat race"></div>
     <nav class="topbar__nav">
-      <button class="btn btn--ghost btn--sm" data-act="mute" aria-label="Toggle sound" title="Sound on/off">🔊</button>
-      <button class="btn btn--ghost btn--sm" data-act="saveFile" id="saveBtn" title="Download this game as a save file" hidden>💾</button>
-      <button class="btn btn--ghost btn--sm" data-act="rules">How to play</button>
+      <button class="btn btn--glass btn--icon" data-act="mute" aria-label="Toggle sound" title="Sound on/off">🔊</button>
+      <button class="btn btn--glass btn--icon" data-act="saveFile" id="saveBtn" title="Download this game as a save file" aria-label="Download save file" hidden>💾</button>
+      <button class="btn btn--glass btn--icon" data-act="rules" title="How to play" aria-label="How to play">?</button>
       <button class="btn btn--pink btn--sm" data-act="coach" id="coachBtn" hidden>Ask Cash 💬</button>
     </nav>
   </header>
+  <div class="topinfo" id="topInfo"></div>
 
   <main>
     <!-- ================= LOBBY ================= -->
     <section class="screen lobby" id="lobby">
       <div class="hero">
         <p class="eyebrow">Real life · real money · real friends</p>
-        <h1>Escape the<br /><em>rat race.</em></h1>
-        <p class="lead">You get a real-life character: a job (or not), a city, rent or a mortgage, a car loan, maybe kids. Beat the bills, stack assets, and be the first whose <strong>passive income covers your expenses</strong>.</p>
+        <h1>Rat Race <em>Royale</em></h1>
+        <p class="lead">Get a real-life character: a job (or not), a city, rent or a mortgage, a car loan, maybe kids. Beat the bills, stack assets, and be the first whose <strong>passive income covers your expenses</strong>.</p>
       </div>
 
       <div class="panel saves" id="saves" hidden></div>
+
       <div class="modes">
         <article class="mode">
           <h2>🎮 Play on this device</h2>
           <p class="muted">Pass-and-play with up to 6 players on one screen.</p>
           <div id="localNames" class="names"></div>
-          <div class="row">
-            <button class="btn btn--ghost btn--sm" data-act="addLocal">+ Add player</button>
-          </div>
+          <div class="row"><button class="btn btn--ghost btn--sm" data-act="addLocal">+ Add player</button></div>
           <label class="field"><span>Game length</span>
             <select data-length="local"><option value="quick">Quick: passive income covers 60% of expenses</option><option value="standard" selected>Standard: passive income covers 100% of expenses</option><option value="classic">Classic: escape, then win your dream on the Fast Track</option></select>
           </label>
@@ -74,25 +75,42 @@
     </section>
 
     <!-- ================= GAME ================= -->
-    <section class="screen game" id="game" hidden>
-      <div class="boardcol">
+    <section class="game" id="game" hidden>
+      <nav class="rail" id="rail" aria-label="Your money">
+        <button data-act="pane" data-pane="me" title="Your money"><span>💼</span><small>Money</small></button>
+        <button data-act="stmtMe" title="Full financial statement"><span>📄</span><small>Statement</small></button>
+        <button data-act="pane" data-pane="credit" title="Credit score"><span>💳</span><small>Credit</small></button>
+        <button data-act="pane" data-pane="ticker" title="Stock market"><span>📈</span><small>Market</small></button>
+        <button data-act="pane" data-pane="players" title="Players"><span>👥</span><small>Players</small></button>
+        <button data-act="pane" data-pane="log" title="Everything that happened"><span>📰</span><small>Feed</small></button>
+        <button data-act="pane" data-pane="fast" id="railFast" title="Fast Track" hidden><span>🚀</span><small>Fast Track</small></button>
+        <button data-act="coach" title="Ask Cash, your money coach"><span>💬</span><small>Cash</small></button>
+      </nav>
+
+      <aside class="drawer" id="drawer" hidden>
+        <button class="drawer__close" data-act="pane" data-pane="" aria-label="Close panel">×</button>
+        <div class="pane" id="me" data-pane="me"></div>
+        <div class="pane" id="credit" data-pane="credit"></div>
+        <div class="pane" id="ticker" data-pane="ticker"></div>
+        <div class="pane" id="players" data-pane="players"></div>
+        <div class="pane log" id="log" data-pane="log" aria-live="polite"></div>
+        <div class="pane" id="fast" data-pane="fast"></div>
+      </aside>
+
+      <div class="center">
+        <div class="peek" id="peek" aria-live="polite"></div>
         <div class="boardwrap">
           <div class="board" id="board" aria-label="Game board"></div>
           <div class="dice" id="dice" aria-live="polite"></div>
           <div class="stage" id="stage" hidden></div>
         </div>
-        <div class="panel fast" id="fast" hidden></div>
-        <div class="panel ticker" id="ticker"></div>
       </div>
-      <aside class="side">
-        <div class="panel me" id="me"></div>
-        <div class="panel players" id="players"></div>
-        <div class="panel log" id="log" aria-live="polite"></div>
-      </aside>
     </section>
   </main>
+
   <div class="dock" id="dock" aria-live="polite" hidden></div>
-  <footer class="sitefoot"><b>CashFlow: Escape the Rat Race</b> · by Freeman T. · <span class="muted">a financial-literacy game, not financial advice</span></footer>
+  <div class="fx" id="fx" aria-hidden="true"></div>
+  <footer class="sitefoot"><b>Rat Race Royale</b> · by Freeman T. · <span class="muted">a financial-literacy game, not financial advice</span></footer>
 
   <dialog class="modal modal--wide" id="stmtDialog"><div class="modal__inner" id="stmtBody"></div></dialog>
   <dialog class="modal" id="coachDialog"><div class="modal__inner" id="coachBody"></div></dialog>
@@ -101,21 +119,21 @@
       <button class="modal__close" data-act="close" aria-label="Close">×</button>
       <h2>How to play</h2>
       <ol>
-        <li><b>Goal:</b> be the first whose <b>passive income</b> (dividends, rentals, businesses) covers your <b>living expenses</b>. That's escaping the rat race.</li>
-        <li><b>Your turn:</b> roll the dice and move. Every <b>💰 Pay Day</b> you land on or pass pays your paycheck: income minus taxes, savings and bills.</li>
+        <li><b>Goal:</b> be the first whose <b>passive income</b> (dividends, rentals, businesses) covers your <b>monthly living expenses</b>. The bars at the top show how close everyone is.</li>
+        <li><b>Your money moves like real life:</b> every <b>💰 Pay Day</b> you land on or pass is one paycheck (every 2 weeks): pay minus taxes, 401(k) and health insurance. On the <b>1st of each month</b> your bills go out (rent or mortgage, car, loans, cards, utilities, child care) and your passive income comes in.</li>
         <li><b>💡 Opportunity:</b> pick a <b>small deal</b> (stocks, funds, starter homes, small businesses) or a <b>big deal</b> (apartment buildings, commercial property, bigger businesses). Check the cashflow: some deals lose money!</li>
         <li><b>Events:</b> 🛍️ personal spending, 👶 new baby, 💛 charity (donate 10% to roll 2 dice for 3 turns), 📨 buyer offers for your property, 📉 downsizing (usually a furlough, sometimes a real layoff), 📰 economic news that hits everyone.</li>
-        <li><b>Manage money</b> (after rolling): sell stocks or property (quick sales take a 20% hit), pay off debts to cut expenses, or take a bank loan in $1,000 steps.</li>
+        <li><b>Manage money</b> (after rolling): sell stocks or property (quick sales take a 20% hit), pay off a debt or just <b>pay part of it down</b>, or take a bank loan in $1,000 steps.</li>
+        <li><b>📬 Taxes:</b> federal tax is withheld from every paycheck. At year end the game compares it with what you really owed (including investment income). The refund, or the bill, arrives in April.</li>
+        <li><b>💳 Credit score (300–850):</b> bills paid on time build it, running out of cash is a missed payment (−30), card balances over 30% of your limit hurt, and new loans cause a small dip. Better credit = cheaper loans. Every deal card shows <i>your</i> rate.</li>
         <li><b>Deals get shared:</b> pass on a deal and the next player can grab it. Stocks are open to everyone at the same price after someone buys.</li>
-        <li><b>📈 Market:</b> prices drift every round and swing with news. Growth stocks pay no dividends, so sell them high. Dividend funds pay you to hold.</li>
+        <li><b>📈 Market:</b> prices move every round and swing with news. Each stock card shows its 52-week range. Growth stocks pay no dividends, so sell them high. Dividend funds pay you to hold.</li>
         <li><b>🏦 401(k):</b> pick a contribution %. Most employers match 50% up to 6%: free money, but it's locked for retirement and doesn't count toward escaping.</li>
-        <li><b>💳 Credit score (300–850):</b> on-time paychecks build it, running out of cash is a missed payment (−30), card balances over 30% of your limit hurt, and new loans cause a small dip. Better credit = cheaper mortgages and bank loans. Every deal card shows <i>your</i> rate.</li>
-        <li><b>🚀 Classic mode:</b> escaping takes you to the <b>Fast Track</b>. Collect CashFlow Day (100× your monthly passive income), buy big businesses, dodge lawsuits and audits. Win by buying your <b>dream</b> or adding $50k/month of cashflow.</li>
-        <li><b>Online:</b> the host can set a turn timer. When it runs out, the game plays it safe for you (roll, small deal, pass, end turn). Disconnected players get skipped automatically.</li>
-        <li><b>💾 Saving:</b> every move saves automatically. Your last 8 games show under <b>Saved games</b> on the home screen. Resuming an online game reopens the same room code, and friends rejoin with the code and the same name. Use 💾 to download a save file and continue on another device.</li>
-        <li><b>Between jobs?</b> You get unemployment benefits for a while. Job offers show up on Opportunity tiles, and your odds of getting hired improve every turn.</li>
+        <li><b>🚀 Classic mode:</b> escaping takes you to the <b>Fast Track</b>. Collect Payout Day (100× your monthly passive income), buy big businesses, dodge lawsuits and audits. Win by buying your <b>dream</b> or adding $50k/month of cashflow.</li>
+        <li><b>💾 Saving:</b> every move saves automatically. Your last 8 games show under <b>Saved games</b> on the home screen. Online games reopen with the same room code, and friends rejoin with the same name.</li>
+        <li><b>Online:</b> the host can set a turn timer. When it runs out, the game plays it safe for you. Disconnected players get skipped automatically.</li>
       </ol>
-      <p class="muted">Taxes use the latest IRS federal brackets (updated automatically when the IRS publishes new ones), FICA and approximate state rates. Raises come every 12 paychecks. Salaries come from BLS wage data. It's a game, not financial advice 💅</p>
+      <p class="muted">Taxes use the latest IRS federal brackets (updated automatically), FICA and approximate state rates. Salaries come from BLS wage data. It's a game, not financial advice 💅</p>
     </div>
   </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
