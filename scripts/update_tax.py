@@ -1,5 +1,5 @@
 """
-Automatic tax-table updater for the CashFlow game.
+Automatic tax-table updater for Rat Race Royale.
 
 Run by .github/workflows/update-tax.yml every month. For each tax year it doesn't have yet, it:
   1. finds the IRS Revenue Procedure with that year's inflation adjustments (irs.gov/pub/irs-drop/rp-YY-NN.pdf),
@@ -20,7 +20,7 @@ from pypdf import PdfReader
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "js" / "data" / "tax-tables.json"
-UA = {"User-Agent": "Mozilla/5.0 (CashFlow game tax updater; https://github.com/FTalla18/cashflow)"}
+UA = {"User-Agent": "Mozilla/5.0 (Rat Race Royale tax updater; https://github.com/FTalla18/rat-race-royale)"}
 RATES = [0.10, 0.12, 0.22, 0.24, 0.32, 0.35, 0.37]
 STATUSES = ["single", "married_joint", "married_separate", "head_household"]
 

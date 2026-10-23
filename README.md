@@ -2,7 +2,7 @@
 
 A multiplayer, browser-based financial-literacy board game by Freeman T., grown from Freeman's original CashFlow game project. Each player lives a real-life character: a job (or not), a city, rent or a mortgage, a car loan, maybe kids and a working spouse. Players beat the bills, buy assets, and race to be the first whose **passive income covers their living expenses**.
 
-**Play:** https://ftalla18.github.io/cashflow/
+**Play:** https://ftalla18.github.io/rat-race-royale/
 
 ## Features
 - **Real numbers:**
